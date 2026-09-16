@@ -2,7 +2,7 @@
     "name": "Main",
     "target": "branch",
     "source_type": "Repository",
-    "source": "specsnl/agent-specs",
+    "source": "specsnl/agent-skills",
     "enforcement": "active",
     "conditions": {
         "ref_name": {
