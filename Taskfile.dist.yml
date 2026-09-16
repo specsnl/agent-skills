@@ -5,7 +5,7 @@ silent: true
 
 vars:
   MARKETPLACE_NAME: specs
-  MARKETPLACE_REPO: specsnl/agent-specs
+  MARKETPLACE_REPO: specsnl/agent-skills
   # Latest version of MarkdownLint:
   #   - https://hub.docker.com/r/davidanson/markdownlint-cli2/tags
   #   - https://github.com/DavidAnson/markdownlint-cli2/tags

@@ -1,4 +1,4 @@
-# agent-specs
+# agent-skills
 
 This repo is a Claude Code plugin marketplace. Each plugin under `plugins/<name>/`
 bundles some combination of skills, commands, MCP servers, hooks, and agents.

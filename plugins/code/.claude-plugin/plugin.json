@@ -6,7 +6,7 @@
         "email": "info@specs.nl",
         "url": "https://github.com/specsnl"
     },
-    "repository": "specsnl/agent-specs",
+    "repository": "specsnl/agent-skills",
     "license": "MIT",
     "keywords": ["code", "comments", "conventions", "specs", "plugin"]
 }
