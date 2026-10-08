@@ -23,7 +23,7 @@ tasks:
     desc: Add this marketplace using the remote repository
     cmds:
       - echo ">> Adding marketplace to Claude..."
-      - claude plugin marketplace add {{.MARKETPLACE_REPO}}
+      - claude plugin marketplace add {{ .MARKETPLACE_REPO }}
 
   marketplace:add:claude:
     desc: Add this marketplace to Claude
@@ -48,7 +48,7 @@ tasks:
         msg: "Claude is not installed. Please install Claude to add this marketplace."
     cmds:
       - echo ">> Removing marketplace from Claude..."
-      - cmd: claude plugin marketplace remove {{.MARKETPLACE_NAME}}
+      - cmd: claude plugin marketplace remove {{ .MARKETPLACE_NAME }}
         ignore_error: true
 
   marketplace:reset:
@@ -60,19 +60,19 @@ tasks:
   plugin:list:
     desc: List available plugins
     cmds:
-      - claude plugin marketplace browse specs
+      - claude plugin marketplace browse {{ .MARKETPLACE_NAME }}
 
   marketplace:update:
     desc: Update this marketplace in Claude
     cmds:
-      - claude plugin marketplace update {{.MARKETPLACE_NAME}}
+      - claude plugin marketplace update {{ .MARKETPLACE_NAME }}
 
   plugin:install:*:
     desc: Install a plugin in Claude
     vars:
-      PLUGIN: '{{index .MATCH 0}}'
+      PLUGIN: '{{ index .MATCH 0 }}'
     cmds:
-      - claude plugin install {{.PLUGIN}}@{{.MARKETPLACE_NAME}}
+      - claude plugin install {{ .PLUGIN }}@{{ .MARKETPLACE_NAME }}
 
   md:checkstyle:
     desc: Check style of Markdown files
@@ -80,9 +80,9 @@ tasks:
       - docker run
         --rm
         --volume $(pwd):/workdir
-        davidanson/markdownlint-cli2:{{.MARKDOWNLINT_VERSION}}
-        {{.SUB_CMD}}
-        {{.CLI_ARGS}}
+        davidanson/markdownlint-cli2:{{ .MARKDOWNLINT_VERSION }}
+        {{ .SUB_CMD }}
+        {{ .CLI_ARGS }}
 
   md:fixstyle:
     desc: Fix style of Markdown files — align tables, then apply autofixable lint rules
@@ -99,7 +99,7 @@ tasks:
         --rm
         --volume $(pwd):/app
         --workdir /app
-        node:{{.NODE_VERSION}}
+        node:{{ .NODE_VERSION }}
         bash -c "shopt -s globstar dotglob && npx --yes markdown-table-formatter **/*.md"
 
   hooks:install:
