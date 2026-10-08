@@ -9,9 +9,9 @@ vars:
   # Latest version of MarkdownLint:
   #   - https://hub.docker.com/r/davidanson/markdownlint-cli2/tags
   #   - https://github.com/DavidAnson/markdownlint-cli2/tags
-  MARKDOWNLINT_VERSION: v0.20.0
+  MARKDOWNLINT_VERSION: v0.23.3
   # Latest version of Node: https://hub.docker.com/_/node/tags
-  NODE_VERSION: 24.15.0-bookworm
+  NODE_VERSION: 24.21.0-bookworm
 
 tasks:
   marketplace:add:
