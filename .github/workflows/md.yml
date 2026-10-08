@@ -17,7 +17,7 @@ permissions:
 jobs:
   changes:
     name: Changes Filter
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       mdlint: ${{ steps.filter.outputs.mdlint }}
     steps:
@@ -35,7 +35,7 @@ jobs:
 
   mdlint:
     name: Check markdown style
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.mdlint == 'true' }}
     steps:
@@ -46,7 +46,7 @@ jobs:
 
   gate-mdlint:
     name: Markdown gate
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [changes, mdlint]
     if: always()
     steps:
