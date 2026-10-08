@@ -1,6 +1,6 @@
 # specsnl/agent-skills
 
-Specs's Claude Code (marketplace) plugins.
+Specs Claude Code (marketplace) plugins.
 
 ## Installation instructions
 
