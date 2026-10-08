@@ -1,0 +1,10 @@
+# https://taskfile.dev
+version: "3"
+
+tasks:
+  install:*:
+    desc: Install a plugin in Claude
+    vars:
+      PLUGIN: '{{ index .MATCH 0 }}'
+    cmds:
+      - claude plugin install {{ .PLUGIN }}@{{ .MARKETPLACE_NAME }}
