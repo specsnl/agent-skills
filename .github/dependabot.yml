@@ -7,7 +7,3 @@ updates:
     labels:
       - dependencies
       - github-actions
-    groups:
-      specsnl-actions:
-        patterns:
-          - "specsnl/github-actions"
