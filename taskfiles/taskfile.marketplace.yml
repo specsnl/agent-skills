@@ -1,0 +1,51 @@
+# https://taskfile.dev
+version: "3"
+
+tasks:
+  add:
+    desc: Add this marketplace to Claude
+    cmds:
+      - task: add:claude
+
+  add:repo:
+    desc: Add this marketplace using the remote repository
+    cmds:
+      - echo ">> Adding marketplace to Claude..."
+      - claude plugin marketplace add {{ .MARKETPLACE_REPO }}
+
+  add:claude:
+    desc: Add this marketplace to Claude
+    internal: true
+    preconditions:
+      - sh: command -v claude
+        msg: "Claude is not installed. Please install Claude to add this marketplace."
+    cmds:
+      - echo ">> Adding marketplace to Claude..."
+      - claude plugin marketplace add ./
+
+  remove:
+    desc: Remove this marketplace from Claude
+    cmds:
+      - task: remove:claude
+
+  remove:claude:
+    desc: Remove this marketplace from Claude
+    internal: true
+    preconditions:
+      - sh: command -v claude
+        msg: "Claude is not installed. Please install Claude to add this marketplace."
+    cmds:
+      - echo ">> Removing marketplace from Claude..."
+      - cmd: claude plugin marketplace remove {{ .MARKETPLACE_NAME }}
+        ignore_error: true
+
+  reset:
+    desc: Reset this marketplace in Claude
+    cmds:
+      - task: remove
+      - task: add
+
+  update:
+    desc: Update this marketplace in Claude
+    cmds:
+      - claude plugin marketplace update {{ .MARKETPLACE_NAME }}
