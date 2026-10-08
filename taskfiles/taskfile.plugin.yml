@@ -2,11 +2,6 @@
 version: "3"
 
 tasks:
-  list:
-    desc: List available plugins
-    cmds:
-      - claude plugin marketplace browse {{ .MARKETPLACE_NAME }}
-
   install:*:
     desc: Install a plugin in Claude
     vars:
