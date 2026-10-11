@@ -201,7 +201,34 @@ current. A newer major version may exist.
 `.github/workflows/*.yml`, `.github/actions/**/*.yml`) and commit. Commit message:
 `chore(deps): Updated GitHub Actions versions`. For any remaining unrelated changed files, commit them separately
 with a descriptive message.
-5. If there are no changes, skip the commit step and move on to the next phase.
+5. If there are no changes, skip the commit step and continue with the runner images below.
+6. Scan the same files for `runs-on:` runner labels. Besides plain labels (`runs-on: ubuntu-latest`), also check
+labels in arrays (`runs-on: [ubuntu-latest]`) and in `strategy.matrix` values that `runs-on` references through an
+expression (e.g. `runs-on: ${{ matrix.os }}`).
+7. Determine the latest **generally available** version of each GitHub-hosted runner image:
+    - The authoritative source is the "Available Images" table in the
+    [actions/runner-images](https://github.com/actions/runner-images) README
+    (`gh api repos/actions/runner-images/readme -H "Accept: application/vnd.github.raw"`). It lists every image
+    with its architecture (x64 / arm64) and the YAML labels that select it.
+    - Ignore images marked as beta, (public) preview or deprecated — only use stable, generally available labels.
+    - Use the architecture column, not the label name, to determine a label's architecture. The naming is not
+    consistent across OS families: `ubuntu-26.04-arm` is arm64, but `macos-26` is arm64 and `macos-26-intel` is x64.
+8. Update each GitHub-hosted runner label to the latest stable version for its OS family, architecture and size:
+    - Replace floating `-latest` labels with an explicit version, even when the `-latest` label already points to
+    the newest image (e.g. `ubuntu-latest` → `ubuntu-26.04`, `macos-latest` → `macos-26`,
+    `macos-latest-large` → `macos-26-large`).
+    - Bump explicitly versioned labels to the latest stable version (e.g. `ubuntu-24.04` → `ubuntu-26.04`).
+    - Preserve the architecture, size and variant suffix of the label (e.g. `-arm`, `-intel`, `-large`, `-xlarge`,
+    `-vs2026`): `ubuntu-24.04-arm` → `ubuntu-26.04-arm`, `macos-15-intel` → `macos-26-intel`. Arm and other
+    variants can lag behind the x64 images, so use the highest version for which that exact variant is generally
+    available — never switch a job to a different architecture.
+    - Never downgrade: if a label is already on a newer version than the latest stable one (e.g. a beta image),
+    leave it as is.
+    - Leave self-hosted runners and custom labels (e.g. `self-hosted`, organization-defined larger runner names,
+    runner `group:` configurations) untouched.
+9. Check `git status` for all changed files. Stage only files directly related to the runner image updates and
+commit. Commit message: `chore(ci): Updated GitHub Actions runner images`.
+10. If there are no changes, skip the commit step and move on to the next phase.
 
 Abort on any failure.
 
@@ -223,7 +250,7 @@ dependencies. If there are any, create a summary and suggest to the user to upda
 
 Abort if there are no changes after all update steps, and inform the user that dependencies are already up to date.
 
-- There could be up to 6 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
+- There could be up to 7 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
 committed separately per the Commit Strategy):
     1. Composer updates
     2. Replaced abandoned `ilyes512` packages with `specsnl` equivalents
@@ -231,6 +258,7 @@ committed separately per the Commit Strategy):
     4. NPM dependency updates
     5. Docker image version updates
     6. GitHub Actions version updates
+    7. GitHub Actions runner image updates
 - Branch: `vendor-updates`
 - Based on the chosen source from step 4 (latest `origin/main` by default, or local `main` if selected).
 - The working tree should be clean.
@@ -266,7 +294,11 @@ committed separately per the Commit Strategy):
   - Updated NPM dependencies
   - Updated Docker image versions
   - Updated GitHub Actions versions
+  - Updated GitHub Actions runner images
 
   ## Test plan
   - [ ] Review the dependency changelog(s) for any breaking changes or notable updates.
+  - [ ] Verify the CI workflows pass on the updated runner images.
   ```
+
+  Only include the runner images test plan item when the runner images were updated.
