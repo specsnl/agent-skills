@@ -141,7 +141,11 @@ Abort on any failure.
 ## Phase 7 --- Docker Image Updates
 
 1. Scan the following files for pinned Docker image references:
-    - `compose.yml`
+    - All Docker Compose files tracked in the repository, not just the root `compose.yml`. Compose files can live in
+    subdirectories and use variant names such as `compose.override.yml`, `compose.ci.yml` or `docker/compose.dev.yml`.
+    Find them with `git ls-files` (which skips untracked directories like `vendor/` and `node_modules/`), matching
+    `compose.yml`, `compose.*.yml`, `docker-compose.yml` and `docker-compose.*.yml`, plus their `.yaml` variants, in
+    any directory.
     - `php/Dockerfile`
     - `nginx/Dockerfile`
     - `.github/workflows/*.yml` (e.g. service images like `mysql:`)
@@ -175,7 +179,8 @@ Abort on any failure.
 5. Reset the environment to make sure it is using the latest images: `task reset`.
 6. Run full backend checks: `task checkall`.
 7. Check `git status` for all changed files. Stage only files directly related to Docker image updates (e.g.,
-`compose.yml`, `php/Dockerfile`, `nginx/Dockerfile`, `.github/workflows/*.yml`) and commit. Commit message:
+the Compose files found in step 1, `php/Dockerfile`, `nginx/Dockerfile`, `.github/workflows/*.yml`) and commit.
+Commit message:
 `chore(deps): Updated Docker image versions`. For any remaining unrelated changed files, commit them separately
 with a descriptive message.
 8. If there are no changes, skip the commit step and move on to the next phase.
@@ -232,10 +237,44 @@ commit. Commit message: `chore(ci): Updated GitHub Actions runner images`.
 
 Abort on any failure.
 
-## Phase 9 --- Final Checks
+## Phase 9 --- Dependabot Coverage
 
-Phase 9 is informational only — findings here do not block the PR. Create the PR first (see Final
-State below), then report the Phase 8 summary to the user.
+1. Check whether the project has a Dependabot config: `.github/dependabot.yml` or `.github/dependabot.yaml`. If
+there is none, skip this phase entirely — do not create one.
+2. Inventory every updatable resource tracked in the repository (use `git ls-files`, so `vendor/` and
+`node_modules/` are skipped) and map each one to its Dependabot `package-ecosystem` and directory:
+    - `composer.json` → `composer`, in the directory containing the file.
+    - `package.json` → `npm`, in the directory containing the file.
+    - `Dockerfile`s (e.g. `php/Dockerfile`, `nginx/Dockerfile`) → `docker`, in the directory containing the file.
+    - Docker Compose files (the same set found in Phase 7 step 1, e.g. `compose.yml`, `compose.*.yml`) →
+    `docker-compose`, in the directory containing the file.
+    - `.github/workflows/*.yml` → `github-actions`, with directory `/` (Dependabot then scans `.github/workflows`
+    itself). Composite actions under `.github/actions/<name>/action.yml` are **not** covered by `/` — each needs its
+    own directory (e.g. `/.github/actions/<name>`) or a matching glob.
+3. For each resource, check whether an entry under `updates` covers it: the `package-ecosystem` must match, and the
+resource's directory must be listed in `directory`, or in `directories` (directly or through a glob such as
+`/.github/actions/*`). Report every uncovered resource — for example, a project with `compose.yml` in the root but
+no `docker-compose` entry is missing coverage for its Compose images.
+4. Add coverage for each uncovered resource:
+    - If an entry already exists for that ecosystem, add the missing directory to it. Convert a single `directory`
+    key to a `directories` list when needed (e.g. `directory: "/"` → `directories: ["/", "/docker"]`).
+    - Otherwise, add a new `updates` entry for the ecosystem. Mirror the conventions of the existing entries
+    (`schedule`, `groups`, `labels`, `commit-message`, `open-pull-requests-limit`, `target-branch`, etc.) so the
+    new entry behaves like the rest.
+    - Do not change settings of existing entries beyond adding directories, and do not remove entries. If an
+    entry points to a directory or ecosystem that no longer exists in the project, leave it in place and mention it
+    in your final report.
+5. Check `git status` for all changed files. Stage only the Dependabot config and commit. Commit message:
+`chore(ci): Updated Dependabot configuration`.
+6. If there is no Dependabot config or everything is already covered, skip the commit step and move on to the next
+phase.
+
+Abort on any failure.
+
+## Phase 10 --- Final Checks
+
+Phase 10 is informational only — findings here do not block the PR. Create the PR first (see Final
+State below), then report the Phase 10 summary to the user.
 
 1. Run the following audit commands and create a summary of the results. Suggest to the user to fix any of the issues
 that are found:
@@ -250,7 +289,7 @@ dependencies. If there are any, create a summary and suggest to the user to upda
 
 Abort if there are no changes after all update steps, and inform the user that dependencies are already up to date.
 
-- There could be up to 7 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
+- There could be up to 8 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
 committed separately per the Commit Strategy):
     1. Composer updates
     2. Replaced abandoned `ilyes512` packages with `specsnl` equivalents
@@ -259,6 +298,7 @@ committed separately per the Commit Strategy):
     5. Docker image version updates
     6. GitHub Actions version updates
     7. GitHub Actions runner image updates
+    8. Dependabot configuration updates
 - Branch: `vendor-updates`
 - Based on the chosen source from step 4 (latest `origin/main` by default, or local `main` if selected).
 - The working tree should be clean.
@@ -295,6 +335,7 @@ committed separately per the Commit Strategy):
   - Updated Docker image versions
   - Updated GitHub Actions versions
   - Updated GitHub Actions runner images
+  - Added missing resources to the Dependabot configuration
 
   ## Test plan
   - [ ] Review the dependency changelog(s) for any breaking changes or notable updates.
