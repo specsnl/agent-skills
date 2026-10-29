@@ -56,7 +56,7 @@ Report:
 ## Phase 2 — Run CI checks locally
 
 Invoke the `ci-green-check` skill — it runs whatever checks are discovered in Phase 1 that can run
-locally, and hands off to `php-checks` in Laravel/PHP projects.
+locally, and hands off to `php-checks` (from the `php` plugin) in PHP projects.
 
 **Do not proceed to Phase 3 if any check fails.**
 

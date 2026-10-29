@@ -8,6 +8,5 @@
     },
     "repository": "specsnl/agent-skills",
     "license": "MIT",
-    "keywords": ["laravel", "php", "framework", "specs", "plugin"],
-    "commands": "./commands"
+    "keywords": ["laravel", "php", "framework", "specs", "plugin"]
 }

@@ -72,7 +72,7 @@ Translate remaining source-language strings in {{TARGET_LANGUAGE}} translation f
 ### Phase 4 — Create PR
 
 Invoke the `create-pr` skill to push the branch and open the PR. It runs `ci-green-check`, which
-hands off to `php-checks` for this project's PHP tooling — translation files are checked by
+hands off to `php-checks` (from the `php` plugin) for this project's PHP tooling — translation files are checked by
 `composer:script:checkstyle` (phpcs) too, so let that run rather than skipping it.
 
 Provide the following title and body:
