@@ -1,9 +1,14 @@
 #!/bin/bash
 set -e
 
+# In a worktree, .git is a file pointing into the main repository's .git directory,
+# so that directory must be mounted at the same path for git to work in the container.
+GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+
 docker run \
   --rm \
   --volume "$(git rev-parse --show-toplevel):/workspace" \
+  --volume "$GIT_COMMON_DIR:$GIT_COMMON_DIR" \
   --env AUTO_STAGE=true \
   ghcr.io/specsnl/utils:1.15.0 \
   bash .githooks/bump-versions.sh

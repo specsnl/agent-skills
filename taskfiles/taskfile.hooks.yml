@@ -1,16 +1,21 @@
 # https://taskfile.dev
 version: "3"
 
+vars:
+  # Resolves to the shared hooks directory, also from inside a worktree (where .git is a file).
+  HOOKS_DIR:
+    sh: git rev-parse --git-path hooks
+
 tasks:
   install:
     desc: Install git hooks
     cmds:
-      - cp .githooks/pre-commit .git/hooks/pre-commit
-      - chmod +x .git/hooks/pre-commit
+      - cp .githooks/pre-commit "{{.HOOKS_DIR}}/pre-commit"
+      - chmod +x "{{.HOOKS_DIR}}/pre-commit"
       - echo ">> Git hooks installed"
 
   uninstall:
     desc: Uninstall git hooks
     cmds:
-      - rm -f .git/hooks/pre-commit
+      - rm -f "{{.HOOKS_DIR}}/pre-commit"
       - echo ">> Git hooks uninstalled"
