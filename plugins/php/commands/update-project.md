@@ -403,7 +403,7 @@ that are found:
 projects) to check for any major updates that are available for direct dependencies. If there are any, create a
 summary and suggest to the user to update those as well.
 3. Keep this phase a short summary. For the full audit and major-version analysis, point the user to the
-`/php:project-health-check` command (once the `php` plugin ships it).
+`/php:project-health-check` command; don't run it from here.
 
 ------------------------------------------------------------------------
 
