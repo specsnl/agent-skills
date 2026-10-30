@@ -36,7 +36,10 @@ jobs:
       - name: Bump plugin versions
         if: steps.filter.outputs.plugins == 'true'
         run: |
-          bash .githooks/bump-versions.sh
+          # Merge commits are the only allowed merge strategy for main; anything else (like this bump) is skipped.
+          git rev-parse --verify --quiet HEAD^2 > /dev/null || exit 0
+          git show HEAD~1:.claude-plugin/marketplace.json \
+            | bash .githooks/bump-versions.sh $(git diff --name-only HEAD~1 HEAD -- plugins/ | cut -d'/' -f2 | sort -u)
 
           MARKETPLACE_FILE=".claude-plugin/marketplace.json"
           git config user.name "specsnl[bot]"
