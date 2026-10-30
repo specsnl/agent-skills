@@ -1,0 +1,13 @@
+{
+    "name": "php",
+    "description": "A PHP-specific plugin for Specs",
+    "author": {
+        "name": "Specsnl Team",
+        "email": "info@specs.nl",
+        "url": "https://github.com/specsnl"
+    },
+    "repository": "specsnl/agent-skills",
+    "license": "MIT",
+    "keywords": ["php", "composer", "dependencies", "specs", "plugin"],
+    "commands": "./commands"
+}

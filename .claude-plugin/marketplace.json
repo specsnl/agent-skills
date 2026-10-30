@@ -11,8 +11,14 @@
         {
             "name": "laravel",
             "source": "./plugins/laravel",
-            "version": "0.0.24",
+            "version": "0.0.25",
             "description": "A Specs Laravel specific plugin"
+        },
+        {
+            "name": "php",
+            "source": "./plugins/php",
+            "version": "0.0.1",
+            "description": "A PHP-specific plugin for Specs"
         },
         {
             "name": "docker",
@@ -35,7 +41,7 @@
         {
             "name": "github",
             "source": "./plugins/github",
-            "version": "0.0.12",
+            "version": "0.0.13",
             "description": "A GitHub-specific plugin for Specs"
         },
         {

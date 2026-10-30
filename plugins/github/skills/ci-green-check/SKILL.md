@@ -1,7 +1,7 @@
 ---
 name: ci-green-check
 description: >
-  Use this skill after every code change in a repository to discover and run all CI checks locally before finishing work. Triggers automatically after completing any code edit, bug fix, refactor, or feature implementation. Also triggers when the user says "run the checks", "make sure everything is green", "verify the build", or "are the tests passing?". This skill reads .github/workflows and the Taskfile to discover what checks exist, runs everything that can be run locally (tests, linters, static analysis), attempts to auto-fix any failures, and reports checks that require cloud/secrets so the user is aware. For PHP/Laravel repositories it hands off the concrete commands to the `php-checks` skill. Never consider a task done until all locally runnable checks pass.
+  Use this skill after every code change in a repository to discover and run all CI checks locally before finishing work. Triggers automatically after completing any code edit, bug fix, refactor, or feature implementation. Also triggers when the user says "run the checks", "make sure everything is green", "verify the build", or "are the tests passing?". This skill reads .github/workflows and the Taskfile to discover what checks exist, runs everything that can be run locally (tests, linters, static analysis), attempts to auto-fix any failures, and reports checks that require cloud/secrets so the user is aware. For PHP repositories it hands off the concrete commands to the `php-checks` skill from the `php` plugin. Never consider a task done until all locally runnable checks pass.
 ---
 
 # CI Green Check
@@ -14,8 +14,8 @@ before finishing.
 This skill owns *discovery, ordering, the fix loop, and reporting*. The concrete commands depend on
 the stack:
 
-- **PHP / Laravel** (a `composer.json` exists at the repo root) → invoke the `php-checks` skill for
-  environment setup and the exact tool commands, then come back here for Steps 4–6.
+- **PHP** (a `composer.json` exists at the repo root) → invoke the `php-checks` skill from the `php`
+  plugin for environment setup and the exact tool commands, then come back here for Steps 4–6.
 - **Anything else** → derive the commands from the Taskfile and the workflow steps you discovered in
   Step 1, following the runner rules in Step 3.
 
@@ -80,7 +80,7 @@ Group everything into two lists:
 
 Before running, verify the environment is ready.
 
-For PHP/Laravel repos, the `php-checks` skill handles this — hand off now.
+For PHP repos, the `php-checks` skill handles this — hand off now.
 
 Otherwise: if a setup/install/init task was found in Step 1, run it — it likely handles dependency
 installation and config setup.

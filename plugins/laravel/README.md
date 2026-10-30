@@ -6,19 +6,10 @@ All Specs Laravel related skills, instructions, commands/prompts are located in 
 
 Claude: `claude plugin install laravel@specs`
 
+The PHP-generic `update-project` command and the `executing-commands` and `php-checks` skills live in
+the [`php@specs`](../php/README.md) plugin (`claude plugin install php@specs`).
+
 ## Skills
-
-**executing-commands**:  
-REQUIRED: Execute this skill before running ANY project commands (composer, npm, php, docker, etc.).
-This ensures all commands run safely through the Taskfile. Do not run docker compose, npm, php,
-or composer directly on the host.
-
-**php-checks**:  
-Prepare the environment (`task up`) and run the PHP/Laravel quality tools locally through the
-Taskfile — `task checkall`, or the individual `composer:script:*` tools (PHP_CodeSniffer,
-PHPStan/Larastan, PHPUnit, Rector), the dependency audits and the markdown linter. This is the
-PHP/Laravel layer of the `ci-green-check` skill in the `github` plugin, which owns check discovery,
-the fix loop, and the final report.
 
 **fix-translations**:  
 Find, fix, or translate source-language values in the Laravel translation files (`lang/<locale>/*.php`
@@ -32,10 +23,3 @@ Write, expand, or structure Playwright end-to-end tests for a Laravel + Filament
 per-role storageState auth model, shared helpers, a per-role coverage matrix (CRUD / state-machine
 workflows / permission boundaries / tenant isolation), a deterministic test-data strategy, the CI
 job recipe, and Filament-specific selector conventions.
-
-## Commands
-
-**update-project**:  
-Update dependencies of Specs projects based on Laravel using isolated commits.
-
-Claude: `/update-project`
