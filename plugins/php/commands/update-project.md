@@ -78,9 +78,8 @@ whether it runs in a container or on the host.
 | Rebuild local Docker images  | `task build`              | `docker compose build --pull`                                                         |
 | Reset the environment        | `task reset`              | `docker compose down` followed by `docker compose up -d`                              |
 
-`executing-commands` has the `<pm>` command for each intent. The `npm:*` tasks of the Specs template call `npm`
-directly: use them only when the project's npm tasks call `<pm>`, otherwise run the `<pm>` command through
-`executing-commands`.
+`executing-commands` has the `<pm>` command for each intent. Use the `npm:*` tasks only when the project's npm tasks
+call `<pm>` (they can call any of npm, pnpm or yarn), otherwise run the `<pm>` command through `executing-commands`.
 
 ## Phase 1 --- Repository Safety Checks
 

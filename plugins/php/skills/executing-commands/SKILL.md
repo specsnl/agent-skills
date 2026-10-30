@@ -203,7 +203,7 @@ single `'*'` misses scoped packages.
 
 ### Taskfile interplay
 
-The `npm:*` tasks of the Specs template call `npm` directly:
+Don't assume which package manager a project's `npm:*` tasks call — it can be any of the three:
 
 1. Use `task npm:*` only after checking that the project's npm tasks call the detected package manager (inspect
    `.taskfiles/Taskfile.npm.yml`).
@@ -221,8 +221,8 @@ forwarded to the underlying command:
 |--------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `task composer:script:<name>`                          | a composer script from `composer.json` (`checkall`, `checkstyle`, `checktype`, `test`, `rector-dry`, …) |
 | `task composer:cmd:<name>`                             | a raw composer command (`outdated`, `audit`, `why`, …)                                                  |
-| `task npm:script:<name>`                               | an npm script from `package.json` (`build`, `test:e2e`, …) — npm projects only                          |
-| `task npm:cmd:<name>`                                  | a raw npm command (`audit`, `outdated`, …) — npm projects only                                          |
+| `task npm:script:<name>`                               | a script from `package.json` (`build`, `test:e2e`, …)                                                   |
+| `task npm:cmd:<name>`                                  | a raw package manager command (`audit`, `outdated`, …)                                                  |
 | `task md:checkstyle` / `md:fixstyle` / `md:fix-tables` | markdown lint / fix / table alignment                                                                   |
 | `task dc:run:<service> -- <command>`                   | any command in a Compose service (tier 2)                                                               |
 

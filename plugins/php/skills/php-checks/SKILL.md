@@ -47,8 +47,8 @@ after `--` is forwarded to the underlying command:
 | `task composer:install`       | `composer install` inside the `php` service                                                   |
 | `task composer:update`        | `composer update --with-all-dependencies`                                                     |
 | `task artisan:run:<command>`  | **Laravel only:** `php artisan <command>` (colons included: `artisan:run:migrate:fresh`)      |
-| `task npm:script:<name>`      | an npm **script** from `package.json` (`build`, `test:e2e`, …) — npm projects only            |
-| `task npm:cmd:<name>`         | a raw **npm command** (`audit`, `outdated`, …) — npm projects only                            |
+| `task npm:script:<name>`      | a **script** from `package.json` (`build`, `test:e2e`, …)                                     |
+| `task npm:cmd:<name>`         | a raw **package manager command** (`audit`, `outdated`, …)                                    |
 | `task md:checkstyle`          | markdownlint over the repo                                                                    |
 | `task md:fixstyle`            | fix table spacing, then markdownlint `--fix`                                                  |
 | `task checkall`               | `composer:script:checkall` + `md:checkstyle`                                                  |
