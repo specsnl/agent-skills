@@ -1,10 +1,11 @@
 ---
 name: executing-commands
 description: >
-    REQUIRED: Execute this skill before running ANY project commands (composer, npm, php, docker, etc.).
-    It decides how each command runs in this project: a project task, the Taskfile's Compose wrapper,
-    Docker Compose, a pinned `docker run`, or (last resort) the host. Do not run composer, npm, node or
-    php directly on the host while a container route exists.
+    REQUIRED: Execute this skill before running ANY project commands (composer, npm/pnpm/yarn, php, docker,
+    etc.). It decides how each command runs in this project: a project task, the Taskfile's Compose wrapper,
+    Docker Compose, a pinned `docker run`, or (last resort) the host. It also detects the project's Node
+    package manager. Do not run composer, the Node package manager, node or php directly on the host while a
+    container route exists.
 ---
 
 # Repository Execution Rules
@@ -101,7 +102,7 @@ When the project has no Compose setup (and no scaffold was added):
   when the project has none (see [Picking the PHP image](#picking-the-php-image)):
   - PHP / Composer / PHP tools: `ghcr.io/specsnl/php<xy>/builder:<version>`
   - Node / the Node package manager: `ghcr.io/specsnl/php<xy>/builder_nodejs:<version>` — it has corepack, so
-    pnpm and yarn follow the `packageManager` field.
+    pnpm and yarn follow the `packageManager` field (see [Node package manager](#node-package-manager)).
 - **Pull on demand:** `docker pull` a missing image without asking first, and mention which image and tag you
   pulled.
 - **Always pin a specific version, never `latest`.** For Specsnl images, use the latest release tag of
@@ -161,6 +162,55 @@ choose `<xy>`:
    rule of the `docker:php-images` skill.
 3. Without a `composer.json`, use the newest supported image.
 
+## Node package manager
+
+Projects can use npm, pnpm or yarn. Detect the package manager (`<pm>`) once, and use it for every frontend
+command — never assume npm. Skills and commands that write `<pm>` refer to this section.
+
+### Detection
+
+1. **`packageManager` in `package.json`** (`pnpm@10.x`, `yarn@4.x`, `npm@11.x`). This is authoritative, and
+   corepack enforces it in the Specsnl `builder_nodejs` image.
+2. **The lockfile:**
+    - `pnpm-lock.yaml` → pnpm
+    - `yarn.lock` → yarn: berry (v2+) when there is a `.yarnrc.yml` or `__metadata` in `yarn.lock`, otherwise
+      classic
+    - `package-lock.json` / `npm-shrinkwrap.json` → npm
+3. **No signal:** npm.
+
+**Conflicting signals** (several lockfiles, or a lockfile that doesn't match `packageManager`): carry on with the
+strongest signal — `packageManager` first; otherwise the package manager the CI workflows install with (`npm ci`,
+`pnpm install`, `yarn install`, or the `cache:` value of `actions/setup-node`); otherwise the most recently changed
+lockfile (`git log -1 --format=%cI -- <lockfile>`). Record the conflict and the choice in the result, and suggest
+removing the stray lockfile.
+
+**Bun** (`bun.lock` / `bun.lockb`, or `packageManager: bun@…`) is not supported yet: skip the frontend steps and
+report that the project uses Bun.
+
+### Command map
+
+| Intent               | npm            | pnpm                             | yarn classic                     | yarn berry                         |
+|----------------------|----------------|----------------------------------|----------------------------------|------------------------------------|
+| install (CI, frozen) | `npm ci`       | `pnpm install --frozen-lockfile` | `yarn install --frozen-lockfile` | `yarn install --immutable`         |
+| in-range update      | `npm update`   | `pnpm update`                    | `yarn upgrade`                   | `yarn up -R '**'`                  |
+| audit                | `npm audit`    | `pnpm audit`                     | `yarn audit`                     | `yarn npm audit --all --recursive` |
+| outdated             | `npm outdated` | `pnpm outdated`                  | `yarn outdated`                  | none (only `upgrade-interactive`)  |
+| run script           | `npm run <s>`  | `pnpm run <s>`                   | `yarn run <s>`                   | `yarn run <s>`                     |
+| one-off binary       | `npx <bin>`    | `pnpm dlx <bin>`                 | `npx <bin>`                      | `yarn dlx <bin>`                   |
+
+`yarn up -R '**'` re-resolves every dependency within its existing range without touching `package.json`; a
+single `'*'` misses scoped packages.
+
+### Taskfile interplay
+
+The `npm:*` tasks of the Specs template call `npm` directly:
+
+1. Use `task npm:*` only after checking that the project's npm tasks call the detected package manager (inspect
+   `.taskfiles/Taskfile.npm.yml`).
+2. Otherwise use a matching namespace when one exists (`pnpm:*`, `yarn:*`, `node:*`).
+3. Otherwise run the command through the Compose wrapper (tier 2): `task dc:run:php -- pnpm install
+   --frozen-lockfile`.
+
 ## Task namespaces (Specs projects)
 
 The Taskfile of a Specs project is split into namespaces that are included from `Taskfile.yml` (`.taskfiles/Taskfile.<ns>.yml`).
@@ -171,8 +221,8 @@ forwarded to the underlying command:
 |--------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `task composer:script:<name>`                          | a composer script from `composer.json` (`checkall`, `checkstyle`, `checktype`, `test`, `rector-dry`, …) |
 | `task composer:cmd:<name>`                             | a raw composer command (`outdated`, `audit`, `why`, …)                                                  |
-| `task npm:script:<name>`                               | an npm script from `package.json` (`build`, `test:e2e`, …)                                              |
-| `task npm:cmd:<name>`                                  | a raw npm command (`audit`, `outdated`, …)                                                              |
+| `task npm:script:<name>`                               | an npm script from `package.json` (`build`, `test:e2e`, …) — npm projects only                          |
+| `task npm:cmd:<name>`                                  | a raw npm command (`audit`, `outdated`, …) — npm projects only                                          |
 | `task md:checkstyle` / `md:fixstyle` / `md:fix-tables` | markdown lint / fix / table alignment                                                                   |
 | `task dc:run:<service> -- <command>`                   | any command in a Compose service (tier 2)                                                               |
 
@@ -227,11 +277,12 @@ Run all checks (in Specs projects: phpcs, phpstan, phpunit, rector, audits, mark
 task checkall
 ```
 
-Install dependencies:
+Install dependencies (`task npm:install` only when the npm tasks call the detected package manager):
 
 ```shell
 task composer:install
 task npm:install
+task dc:run:php -- pnpm install --frozen-lockfile
 ```
 
 Run an Artisan command (Laravel only):
