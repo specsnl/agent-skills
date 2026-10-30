@@ -23,7 +23,7 @@ git show "$(git merge-base HEAD main):$MARKETPLACE_FILE" | docker run \
   --user "$(id -u):$(id -g)" \
   --volume "$PWD:/workspace" \
   --workdir /workspace \
-  ghcr.io/specsnl/utils:1.15.0 \
+  ghcr.io/specsnl/utils:1.17.0 \
   bash .githooks/bump-versions.sh $plugins
 
 [ "$(git hash-object "$MARKETPLACE_FILE")" = "$before" ] || git add "$MARKETPLACE_FILE"
