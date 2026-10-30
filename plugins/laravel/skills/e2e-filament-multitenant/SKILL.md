@@ -134,12 +134,15 @@ reuse the spec and branch extra assertions on `test.info().project.name`.
 package manager" section of the `executing-commands` skill (`php` plugin). Never assume npm.
 
 Specs projects run E2E through Docker and Task, against the real stack — not `artisan serve`. Add a
-job to the existing CI workflow that mirrors `.taskfiles/Taskfile.e2e.yml`:
+job to the existing CI workflow that mirrors `.taskfiles/Taskfile.e2e.yml`. The task names below are
+the Specs template's; in other projects use their equivalents (see "Specs task names and project
+equivalents" in `executing-commands`), and name the commands that actually ran in the workflow and
+the report.
 
 1. Install Task (`go-task/setup-task`), create `auth.json` from `COMPOSER_AUTH_JSON`, warm the package
    manager cache with `actions/setup-node` (its `cache:` must match the project's package manager:
    `npm`, `pnpm` or `yarn`; pnpm also needs `pnpm/action-setup` before it).
-2. `task ci:up` — the CI variant of `task up`: env files, `composer:install`, `<pm>:install`, compose
+2. `task ci:up`, or the project's equivalent — the CI variant of `task up`: env files, `composer:install`, `<pm>:install`, compose
    up, `key:generate`, `storage:link`, wait for the DB, `db:migrate-fresh:local`, `<pm>:script:build`.
    Filament won't render without that asset build.
 3. Seed the deterministic fixture:
@@ -148,7 +151,7 @@ job to the existing CI workflow that mirrors `.taskfiles/Taskfile.e2e.yml`:
    the browsers come from the image and need no `playwright install` step.
 5. Upload `playwright-report/` with `if: always()`; upload traces on failure.
 
-Locally: `task e2e:setup` once for host browsers, then `task e2e:test` (UI) or
+Locally (or with the project's equivalents): `task e2e:setup` once for host browsers, then `task e2e:test` (UI) or
 `task e2e:test:headless`; `task e2e:docker:test` reproduces CI exactly.
 
 Start with `--workers=1` for determinism; raise once the data strategy is proven parallel-safe.
@@ -169,7 +172,7 @@ Start with `--workers=1` for determinism; raise once the data strategy is proven
 ## Done criteria
 
 - Every role has HP + WF + NEG + ISO specs; all role projects green locally
-  (`task e2e:test:headless`) and in CI (`task e2e:docker:test`).
+  (`task e2e:test:headless`, or the project's equivalent) and in CI (`task e2e:docker:test`).
 - No false-positive smoke tests against empty lists — workflow/boundary tests run
   against seeded data.
 - The coverage matrix from Phase 3 is filled in for each role, with permission
