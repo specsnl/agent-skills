@@ -31,7 +31,8 @@ checks and `git ls-files` (which skips untracked directories like `vendor/` and 
 
 1. **Specs project or not.** The project is a Specs project when any of these holds:
     - It has a Taskfile (`Taskfile.yml`, `Taskfile.yaml`, `Taskfile.dist.yml`, …) with the Specs namespaces
-    `composer:*`, `npm:*` and `dc:run:*` (check `task --list`).
+    `composer:*` and `dc:run:*`, plus a Node package manager namespace (`npm:*`, `pnpm:*` or `yarn:*`) when there
+    is a `package.json` (check `task --list`).
     - It uses `ghcr.io/specsnl/*` images (in a Dockerfile, a Compose file or a workflow).
     - It has a `specsnl` GitHub remote (`git remote -v` shows `github.com[:/]specsnl/`).
 2. **Framework:** `laravel/framework`, `symfony/framework-bundle`, or none (check `require` in `composer.json`).
@@ -50,7 +51,7 @@ files can live in subdirectories and use variant names such as `compose.override
 `*.Dockerfile` and `Dockerfile.*` in any directory (e.g. `php/Dockerfile`, `nginx/Dockerfile`,
 `docker/app.Dockerfile`).
 7. **Taskfile:** whether there is one, and which tasks it has (`task --list`). Note in particular whether `up`,
-`refresh`, `checkall`, `build`, `reset`, `composer:update`, `npm:update`, `npm:corepack:update` and
+`refresh`, `checkall`, `build`, `reset`, `composer:update`, `<pm>:update`, `<pm>:corepack:update` and
 `setup:auth` exist. Older Specs projects may use the previous `composer:run:*` / `npm:run:*` / `composer:do:*`
 naming — use whatever `task --list` shows.
 8. **Default branch:** `git symbolic-ref --short refs/remotes/origin/HEAD` (strip the `origin/` prefix), or
@@ -72,14 +73,15 @@ whether it runs in a container or on the host.
 | Update Composer dependencies | `task composer:update`    | `composer update --with-all-dependencies`                                             |
 | Raw Composer command         | `task composer:cmd:<cmd>` | `composer <cmd>`                                                                      |
 | Run the project checks       | `task checkall`           | the checks found by the `php-checks` skill                                            |
-| Update frontend dependencies | `task npm:update`         | `<pm>`'s in-range update (e.g. `pnpm update`)                                         |
-| Build frontend assets        | `task npm:script:build`   | `<pm> run build`, when `package.json` defines a `build` script                        |
-| Frontend audit               | `task npm:cmd:audit`      | `<pm>`'s audit (e.g. `pnpm audit`)                                                    |
+| Update frontend dependencies | `task <pm>:update`        | `<pm>`'s in-range update (e.g. `pnpm update`)                                         |
+| Build frontend assets        | `task <pm>:script:build`  | `<pm> run build`, when `package.json` defines a `build` script                        |
+| Frontend audit               | `task <pm>:cmd:audit`     | `<pm>`'s audit (e.g. `pnpm audit`)                                                    |
 | Rebuild local Docker images  | `task build`              | `docker compose build --pull`                                                         |
 | Reset the environment        | `task reset`              | `docker compose down` followed by `docker compose up -d`                              |
 
-`executing-commands` has the `<pm>` command for each intent. Use the `npm:*` tasks only when the project's npm tasks
-call `<pm>` (they can call any of npm, pnpm or yarn), otherwise run the `<pm>` command through `executing-commands`.
+`executing-commands` has the `<pm>` command for each intent. The frontend tasks are named after the package manager
+(`npm:*`, `pnpm:*`, `yarn:*`): use the namespace that matches `<pm>`. When the Taskfile only has another manager's
+namespace, run the `<pm>` command through `executing-commands` instead.
 
 ## Phase 1 --- Repository Safety Checks
 
@@ -203,7 +205,7 @@ Abort on any failure.
 Skip this phase when the project has no `package.json`.
 
 1. Update the package manager version with `corepack up`, which handles npm, pnpm and yarn alike:
-    - When the Taskfile has an `npm:corepack:update` task: `task npm:corepack:update`.
+    - When the Taskfile has a `<pm>:corepack:update` task: `task <pm>:corepack:update`.
     - Otherwise, only when `package.json` pins its package manager in the `packageManager` field: run `corepack up`
     through `executing-commands`. Projects that do not pin a package manager skip this phase.
 2. Commit separately if there are any changes. Commit message: `chore(deps): Updated <pm> version` (e.g.
@@ -216,9 +218,9 @@ Abort on any failure.
 
 Skip this phase when the project has no `package.json`.
 
-1. Update the frontend dependencies with `<pm>`'s in-range update (e.g. `pnpm update`): `task npm:update` in Specs
-projects whose npm tasks call `<pm>`, otherwise the `<pm>` command through `executing-commands`.
-2. Build assets: `task npm:script:build` in Specs projects whose npm tasks call `<pm>`, otherwise `<pm> run build`
+1. Update the frontend dependencies with `<pm>`'s in-range update (e.g. `pnpm update`): `task <pm>:update` in Specs
+projects, otherwise the `<pm>` command through `executing-commands`.
+2. Build assets: `task <pm>:script:build` in Specs projects, otherwise `<pm> run build`
 when `package.json` defines a `build` script. Skip this step when there is no build script.
 3. Check git status for all changed files. Stage only files directly related to the frontend update (e.g., the
 lock file of `<pm>`, `node_modules/` when it is tracked, built assets) and commit. Commit message:
@@ -373,8 +375,8 @@ State below), then report the Phase 10 summary to the user.
 1. Run the following audit commands and create a summary of the results. Suggest to the user to fix any of the issues
 that are found:
     1. Run `composer audit` (`task composer:cmd:audit` in Specs projects).
-    2. When there is a `package.json`, run `<pm>`'s audit (`task npm:cmd:audit` in Specs projects whose npm tasks
-    call `<pm>`, otherwise e.g. `pnpm audit` or `yarn npm audit --all --recursive`).
+    2. When there is a `package.json`, run `<pm>`'s audit (`task <pm>:cmd:audit` in Specs projects,
+    otherwise e.g. `pnpm audit` or `yarn npm audit --all --recursive`).
 2. Run `composer outdated --direct --major-only` (`task composer:cmd:outdated -- --direct --major-only` in Specs
 projects) to check for any major updates that are available for direct dependencies. If there are any, create a
 summary and suggest to the user to update those as well.

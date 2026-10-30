@@ -181,7 +181,8 @@ command — never assume npm. Skills and commands that write `<pm>` refer to thi
 **Conflicting signals** (several lockfiles, or a lockfile that doesn't match `packageManager`): carry on with the
 strongest signal — `packageManager` first; otherwise the package manager the CI workflows install with (`npm ci`,
 `pnpm install`, `yarn install`, or the `cache:` value of `actions/setup-node`); otherwise the most recently changed
-lockfile (`git log -1 --format=%cI -- <lockfile>`). Record the conflict and the choice in the result, and suggest
+lockfile (`git log -1 --format=%cI -- <lockfile>`). The Taskfile's package manager namespace (`npm:*`, `pnpm:*`
+or `yarn:*`) is no signal on its own here: when it doesn't match, the tasks are the stray part. Record the conflict and the choice in the result, and suggest
 removing the stray lockfile.
 
 **Bun** (`bun.lock` / `bun.lockb`, or `packageManager: bun@…`) is not supported yet: skip the frontend steps and
@@ -203,13 +204,15 @@ single `'*'` misses scoped packages.
 
 ### Taskfile interplay
 
-Don't assume which package manager a project's `npm:*` tasks call — it can be any of the three:
+The frontend tasks are named after the package manager they run: `npm:*` tasks run npm, and a pnpm or yarn project
+has `pnpm:*` or `yarn:*` tasks instead. Skills and commands write them as `<pm>:*`.
 
-1. Use `task npm:*` only after checking that the project's npm tasks call the detected package manager (inspect
-   `.taskfiles/Taskfile.npm.yml`).
-2. Otherwise use a matching namespace when one exists (`pnpm:*`, `yarn:*`, `node:*`).
-3. Otherwise run the command through the Compose wrapper (tier 2): `task dc:run:php -- pnpm install
-   --frozen-lockfile`.
+1. Use the namespace that matches `<pm>` (e.g. `task pnpm:install`, `task yarn:script:build`).
+2. When the Taskfile only has another manager's namespace (e.g. `npm:*` tasks in a pnpm project), don't use it — it
+   would run the wrong package manager. Run the `<pm>` command through the Compose wrapper (tier 2) instead, e.g.
+   `task dc:run:php -- pnpm install --frozen-lockfile`, and suggest in the result that the tasks follow the
+   project's package manager.
+3. Without any package manager namespace, use the same tier 2 route.
 
 ## Task namespaces (Specs projects)
 
@@ -221,8 +224,8 @@ forwarded to the underlying command:
 |--------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
 | `task composer:script:<name>`                          | a composer script from `composer.json` (`checkall`, `checkstyle`, `checktype`, `test`, `rector-dry`, …) |
 | `task composer:cmd:<name>`                             | a raw composer command (`outdated`, `audit`, `why`, …)                                                  |
-| `task npm:script:<name>`                               | a script from `package.json` (`build`, `test:e2e`, …)                                                   |
-| `task npm:cmd:<name>`                                  | a raw package manager command (`audit`, `outdated`, …)                                                  |
+| `task <pm>:script:<name>`                              | a script from `package.json` (`build`, `test:e2e`, …) — `<pm>` is `npm`, `pnpm` or `yarn`               |
+| `task <pm>:cmd:<name>`                                 | a raw package manager command (`audit`, `outdated`, …)                                                  |
 | `task md:checkstyle` / `md:fixstyle` / `md:fix-tables` | markdown lint / fix / table alignment                                                                   |
 | `task dc:run:<service> -- <command>`                   | any command in a Compose service (tier 2)                                                               |
 
@@ -277,12 +280,11 @@ Run all checks (in Specs projects: phpcs, phpstan, phpunit, rector, audits, mark
 task checkall
 ```
 
-Install dependencies (`task npm:install` only when the npm tasks call the detected package manager):
+Install dependencies (`task <pm>:install` with the detected package manager, e.g. `task pnpm:install`):
 
 ```shell
 task composer:install
 task npm:install
-task dc:run:php -- pnpm install --frozen-lockfile
 ```
 
 Run an Artisan command (Laravel only):

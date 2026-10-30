@@ -47,8 +47,8 @@ after `--` is forwarded to the underlying command:
 | `task composer:install`       | `composer install` inside the `php` service                                                   |
 | `task composer:update`        | `composer update --with-all-dependencies`                                                     |
 | `task artisan:run:<command>`  | **Laravel only:** `php artisan <command>` (colons included: `artisan:run:migrate:fresh`)      |
-| `task npm:script:<name>`      | a **script** from `package.json` (`build`, `test:e2e`, …)                                     |
-| `task npm:cmd:<name>`         | a raw **package manager command** (`audit`, `outdated`, …)                                    |
+| `task <pm>:script:<name>`     | a **script** from `package.json` (`build`, `test:e2e`, …); `<pm>` is `npm`, `pnpm` or `yarn`  |
+| `task <pm>:cmd:<name>`        | a raw **package manager command** (`audit`, `outdated`, …)                                    |
 | `task md:checkstyle`          | markdownlint over the repo                                                                    |
 | `task md:fixstyle`            | fix table spacing, then markdownlint `--fix`                                                  |
 | `task checkall`               | `composer:script:checkall` + `md:checkstyle`                                                  |
@@ -162,20 +162,21 @@ task composer:script:rector                  # applies the changes
 
 # Dependency audits
 task composer:cmd:audit
-task npm:cmd:audit                           # <pm> audit
+task <pm>:cmd:audit                          # e.g. task pnpm:cmd:audit
 
 # Markdown
 task md:checkstyle
 task md:fixstyle
 
 # Front-end build
-task npm:script:build                        # <pm> run build
+task <pm>:script:build                       # e.g. task pnpm:script:build
 ```
 
 The frontend commands go through the project's Node package manager (`<pm>`), detected by the "Node
-package manager" section of `executing-commands`, which also maps each intent to its `<pm>` command. Use
-the `npm:*` tasks only when they call `<pm>`; otherwise run the `<pm>` command (e.g. `pnpm audit`,
-`pnpm run build`) through `executing-commands`.
+package manager" section of `executing-commands`, which also maps each intent to its `<pm>` command. The
+tasks are named after the package manager (`npm:*`, `pnpm:*`, `yarn:*`): use the namespace that matches
+`<pm>`. When the Taskfile only has another manager's namespace, run the `<pm>` command (e.g. `pnpm audit`,
+`pnpm run build`) through `executing-commands` instead.
 
 Pass extra arguments after `--`, e.g. `task composer:cmd:outdated -- --direct --major-only` or
 `task composer:script:test -- --filter=SomeTest`.

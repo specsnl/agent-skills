@@ -139,8 +139,8 @@ job to the existing CI workflow that mirrors `.taskfiles/Taskfile.e2e.yml`:
 1. Install Task (`go-task/setup-task`), create `auth.json` from `COMPOSER_AUTH_JSON`, warm the package
    manager cache with `actions/setup-node` (its `cache:` must match the project's package manager:
    `npm`, `pnpm` or `yarn`; pnpm also needs `pnpm/action-setup` before it).
-2. `task ci:up` — the CI variant of `task up`: env files, `composer:install`, `npm:install`, compose
-   up, `key:generate`, `storage:link`, wait for the DB, `db:migrate-fresh:local`, `npm:script:build`.
+2. `task ci:up` — the CI variant of `task up`: env files, `composer:install`, `<pm>:install`, compose
+   up, `key:generate`, `storage:link`, wait for the DB, `db:migrate-fresh:local`, `<pm>:script:build`.
    Filament won't render without that asset build.
 3. Seed the deterministic fixture:
    `task 'artisan:run:db:seed' -- --class='Database\Seeders\E2ETestSeeder'`.
