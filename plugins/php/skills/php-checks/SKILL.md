@@ -47,8 +47,8 @@ after `--` is forwarded to the underlying command:
 | `task composer:install`       | `composer install` inside the `php` service                                                   |
 | `task composer:update`        | `composer update --with-all-dependencies`                                                     |
 | `task artisan:run:<command>`  | **Laravel only:** `php artisan <command>` (colons included: `artisan:run:migrate:fresh`)      |
-| `task npm:script:<name>`      | an npm **script** from `package.json` (`build`, `test:e2e`, …)                                |
-| `task npm:cmd:<name>`         | a raw **npm command** (`audit`, `outdated`, …)                                                |
+| `task npm:script:<name>`      | an npm **script** from `package.json` (`build`, `test:e2e`, …) — npm projects only            |
+| `task npm:cmd:<name>`         | a raw **npm command** (`audit`, `outdated`, …) — npm projects only                            |
 | `task md:checkstyle`          | markdownlint over the repo                                                                    |
 | `task md:fixstyle`            | fix table spacing, then markdownlint `--fix`                                                  |
 | `task checkall`               | `composer:script:checkall` + `md:checkstyle`                                                  |
@@ -162,15 +162,20 @@ task composer:script:rector                  # applies the changes
 
 # Dependency audits
 task composer:cmd:audit
-task npm:cmd:audit
+task npm:cmd:audit                           # <pm> audit
 
 # Markdown
 task md:checkstyle
 task md:fixstyle
 
 # Front-end build
-task npm:script:build
+task npm:script:build                        # <pm> run build
 ```
+
+The frontend commands go through the project's Node package manager (`<pm>`), detected by the "Node
+package manager" section of `executing-commands`, which also maps each intent to its `<pm>` command. Use
+the `npm:*` tasks only when they call `<pm>`; otherwise run the `<pm>` command (e.g. `pnpm audit`,
+`pnpm run build`) through `executing-commands`.
 
 Pass extra arguments after `--`, e.g. `task composer:cmd:outdated -- --direct --major-only` or
 `task composer:script:test -- --filter=SomeTest`.
@@ -195,5 +200,5 @@ Report per tool what ran and what its result was, so `ci-green-check` can drive 
 produce the final ✅ / ⚠️ report. Do not declare the work done from here — that is `ci-green-check`'s
 Step 6.
 
-Checks that cannot run locally and must be left to CI: the Composer/NPM cache-warming jobs and
+Checks that cannot run locally and must be left to CI: the Composer and Node package manager cache-warming jobs and
 anything needing `COMPOSER_AUTH_JSON` beyond a local `auth.json`.
