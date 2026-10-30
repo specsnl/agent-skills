@@ -28,6 +28,13 @@ Each plugin declares its `description` in two places: its own
 `marketplace.json`, so both must always carry the same text. Whenever you
 change a plugin's description, update it in both files.
 
+## Skills and commands never dead-end
+
+New and changed skills and commands must not end in "stop and ask" or "abort". Every stop needs an explicit
+resolution, a guardrail skip (skip the affected part, continue with the rest, record it), or the skill-gap
+fallback. Every question needs an autonomous default written next to it. Follow and reference the
+`code:autonomous-execution` skill (`plugins/code/skills/autonomous-execution/SKILL.md`).
+
 ## Formatting tables
 
 After editing any markdown table in this repo, use the
