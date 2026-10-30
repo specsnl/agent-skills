@@ -28,6 +28,14 @@ final report.
 
 ## Commands
 
+**project-health-check**:  
+Analyse the dependency health of a PHP project without changing it, for both Composer and the Node packages:
+security audits, available minor and patch updates, a deep analysis of major upgrades (version path, usage footprint,
+blockers, replacements, suggested upgrade groups) and dependency reduction. Writes a Markdown report to
+`.ai/reports/` and summarizes it.
+
+Claude: `/php:project-health-check`
+
 **update-project**:  
 Update dependencies of PHP projects using isolated commits: Composer, frontend dependencies, Docker
 images, GitHub Actions and runner images, and Dependabot coverage. Specs projects additionally get
