@@ -12,23 +12,23 @@ Propagate relevant changes from the current PHP image repository to all sibling 
 its own branch, commit history, and pull request that mirrors the original — adjusted where necessary for PHP version
 differences.
 
-This command must be run from a PHP image repository on a feature branch that has a pull request (any status). If you are in
-the `php85` repository with updates on a branch, run this command to propagate the applicable changes to `php84` and
-`php83`.
+This command is run from a PHP image repository on a feature branch, usually one that has a pull request. If you
+are in the `php85` repository with updates on a branch, run this command to propagate the applicable changes to
+`php84` and `php83`.
 
-If any step fails, STOP immediately and report the error.
+This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. A failure in one sibling
+skips only that sibling (or that commit): continue with the others and record it in the Final State summary. A
+situation this command doesn't describe is handled the same way, plus a skill-gap issue.
 
 ## Phase 1 --- Safety Checks
 
-1. Confirm the current branch is **not** `main`. If it is, abort and instruct the user to switch to the feature
-   branch first.
-2. Ensure the working tree is clean:
-    - No staged changes
-    - No unstaged changes
-    - No untracked files
-    - If not clean: abort and instruct the user to commit or stash all changes first.
-3. Confirm the current branch has a pull request (any status). If none exists, abort and instruct the user to open
-   one first.
+1. Confirm the current branch is **not** `main`. If it is, there is nothing to propagate: end with a report saying
+   so (run it again from the feature branch).
+2. Check the working tree. This command only reads the branch's commits, so uncommitted changes don't block it —
+   but they are not propagated: leave them untouched and mention them in the summary.
+3. Find the pull request of the current branch (any status). When there is none, continue without it: derive the
+   sibling PR title from the branch's commits (following the repository's title convention, e.g.
+   `chore: Update dependencies`) and record that in the summary.
 
 ## Phase 2 --- Context Gathering
 
@@ -37,15 +37,15 @@ If any step fails, STOP immediately and report the error.
 2. List all commits on the current branch that are not yet on `main`:
    `git log main..HEAD --oneline`
    For each commit, also retrieve its full diff: `git show <sha>`.
-3. Find the pull request for the current branch. Record its **title** — this will be reused verbatim when creating
-   sibling PRs.
+3. Record the **title** of the pull request found in Phase 1 (or the derived title) — this will be reused verbatim
+   when creating sibling PRs.
 4. Locate the sibling repositories using the PHP images skill. Check locally first (sibling directories alongside
    the current repository). Confirm each sibling by verifying its git remote URL or README. Record the local path
    of every sibling that exists.
 5. For every located sibling, check whether its working tree is clean (no staged changes, no unstaged changes, no
-   untracked files). If **any** sibling is dirty, stop immediately, list every dirty sibling and what it has
-   outstanding, and instruct the user to commit or stash those changes before re-running this command. Do not
-   proceed with any sibling until all are clean.
+   untracked files). A dirty sibling is left untouched: work in a fresh worktree of that sibling instead (see
+   Phase 4). When that isn't possible either, skip only that sibling and list it, with what it has outstanding, in
+   the summary. A sibling that can't be found (locally or on GitHub) is skipped the same way.
 
 ## Phase 3 --- Change Analysis
 
@@ -65,11 +65,18 @@ order they should be applied (preserve the original commit order).
 Repeat the following steps for each sibling, working through them one sibling at a time:
 
 1. `cd` into the sibling directory.
-2. Checkout `main`: `git checkout main`
-3. Fetch all remote changes and prune stale tracking branches: `git fetch --prune`
-4. Pull the latest `main` from origin: `git pull origin main`
-5. Create a new branch using the same name as the source branch:
-   `git checkout -b <branch-name>`
+2. Fetch all remote changes and prune stale tracking branches: `git fetch --prune`
+3. Choose the branch name: the same name as the source branch. When that branch already exists in the sibling
+   (locally or on the remote) with commits of its own, leave it untouched and use `<branch-name>-<YYYY-MM-DD>`
+   instead.
+4. Create the branch from the latest `origin/main`:
+    - **Clean sibling:** `git checkout main`, `git pull origin main`, then `git checkout -b <branch-name>`.
+    - **Dirty sibling:** leave its checkout untouched and create a fresh worktree:
+      `git worktree add -b <branch-name> <path> origin/main` (e.g. `../<sibling>-<branch-name>`), and run the
+      remaining steps there. Remove the worktree (`git worktree remove <path>`) once the branch is pushed.
+5. When applying a commit fails for this sibling, skip that commit (list it under "Skipped commits") and continue
+   with the next one. When pushing or creating the PR fails, record it and move on to the next sibling. When no
+   commit applies to this sibling, don't push a branch or open a PR for it.
 6. Apply the relevant changes identified in Phase 3. **Do not use `git cherry-pick`** — manually replicate each
    change so that PHP version strings and any other version-specific values are correctly adapted for this sibling.
    Apply the changes in the original commit order.
@@ -91,7 +98,9 @@ Repeat the following steps for each sibling, working through them one sibling at
 
 ## Final State
 
-After processing all siblings, provide a summary table listing:
+After processing all siblings, provide a summary table listing the following. Below it, list the decisions and
+skipped parts: skipped siblings (and why), suffixed branch names, worktrees used, a derived PR title, uncommitted
+changes in the source repository, and any skill-gap issue filed.
 
 | Sibling repository | Branch created  | Pull request URL | Skipped commits (reason)        |
 |--------------------|-----------------|------------------|---------------------------------|

@@ -11,25 +11,29 @@ reproducible way.
 **Critical rule:** Any version that appears in more than one Dockerfile must be updated across all affected
 Dockerfiles in a single commit. Never update a shared version in only one Dockerfile.
 
-If any step fails, STOP immediately and report the error.
+This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. When a phase fails,
+**isolate it**: don't commit its changes (restore the Dockerfiles it touched), continue with the next phase, and list
+it — with the error — in the PR body's `## Decisions and skipped steps` section. A situation this command doesn't
+describe is handled the same way, plus a skill-gap issue.
 
 ## Phase 1 --- Repository Safety Checks
 
-1. Verify the current branch is `main`. If not, abort and instruct the user to switch to `main` first.
-2. Ensure the working (git) tree is clean:
-    - No staged changes
-    - No unstaged changes
-    - No untracked files
-    - If not clean: Abort immediately — inform the user to commit or stash changes.
-3. Synchronize with remote: `git fetch --prune`
-4. Prepare branch `updates`:
-    - If branch does not exist → create from `origin/main`
-    - If branch exists:
-        - If fully merged into `main` → delete locally and recreate from `origin/main`.
-        - If behind `main` and has NO unique commits → reset `updates` to `origin/main`.
-        - If it contains unique commits → abort and notify user.
-5. Check if the branch does not already exist on the remote. If it does, abort and inform the user to delete
-the remote branch first.
+Never touch the user's own work: uncommitted changes, the current checkout and branches with unique commits stay as
+they are. Record every choice made here in the PR body.
+
+1. Synchronize with remote: `git fetch --prune`
+2. Choose the branch name: `updates`, unless that name is taken by work you must not touch:
+    - On the remote: reuse `updates` only when it has no commits that aren't in `origin/main` (then the new branch
+    fast-forwards it). Otherwise use `updates-<YYYY-MM-DD>` (add `-2`, `-3`, … when that exists too).
+    - Locally: when fully merged into `main`, or without unique commits, delete and recreate it from `origin/main`.
+    When it contains unique commits, leave it untouched and use the suffixed name.
+3. Prepare the branch from `origin/main`:
+    - **On `main` with a clean working tree** (no staged, unstaged or untracked changes): create the branch from
+    step 2 from `origin/main` and check it out.
+    - **Another branch is checked out, or the working tree is dirty:** leave the checkout untouched and run the
+    whole update in a fresh worktree instead: `git worktree add -b <branch> <path> origin/main` (e.g. a sibling
+    directory `../<repo>-updates`). Run every later phase in that worktree, and remove it
+    (`git worktree remove <path>`) once the branch is pushed.
 
 Always branch from latest `origin/main`.
 
@@ -50,7 +54,7 @@ The three Dockerfiles use different base images but all track the same PHP 8.5.x
    Commit message: `chore(deps): Update PHP base image versions`.
 5. If there are no changes, skip the commit and move on.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 3 --- Pie Tool Update
 
@@ -67,7 +71,7 @@ Dockerfiles.
    Commit message: `chore(deps): Update Pie version`.
 4. If there are no changes, skip the commit and move on.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 4 --- PHP Runtime Extension Updates
 
@@ -89,7 +93,7 @@ Process each extension individually and in order:
 
 Repeat for every extension. Each updated extension gets its own commit.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 5 --- Builder Stage Tool Updates
 
@@ -113,7 +117,7 @@ Process each tool individually and in order:
 
 Repeat for every tool. Each updated tool gets its own commit.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 6 --- Node.js Major Version Update
 
@@ -128,7 +132,7 @@ Current (non-LTS) release.
    Commit message: `chore(deps): Update Node.js major version to <version>`.
 5. If there are no changes, skip the commit and move on.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 7 --- Hadolint Version Update
 
@@ -140,7 +144,7 @@ The `Taskfile.dist.yml` pins the Hadolint Docker image version via the `HADOLINT
    Commit message: `chore(deps): Update Hadolint version`.
 4. If there are no changes, skip the commit and move on.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 8 --- GitHub Actions Updates
 
@@ -159,7 +163,7 @@ a version is already current.
    Commit message: `chore(deps): Update GitHub Actions versions`.
 5. If there are no changes, skip the commit and move on.
 
-Abort on any failure.
+On failure, isolate this phase (see the top of this command).
 
 ## Phase 9 --- License Year Update
 
@@ -175,8 +179,9 @@ Abort on any failure.
 
 ## Final State
 
-Abort if there are no changes after all update steps, and inform the user that everything is already up
-to date.
+When there are no changes after all update steps, the run ends here with a report instead of a PR: everything is
+already up to date. The report also lists the skipped phases and decisions. Delete the empty branch (and the
+worktree, when one was created).
 
 - There could be up to 14 commits on the `updates` branch:
     1. PHP base image versions
@@ -193,13 +198,14 @@ to date.
     12. Hadolint version
     13. GitHub Actions versions
     14. Copyright year
-- Branch: `updates`
+- Branch: `updates`, or the suffixed name chosen in Phase 1 step 2.
 - Based on latest `origin/main`.
 - The working tree should be clean.
 - Push the branch to the remote and create a pull request for review and merging targeting `origin/main`.
   The title should be `chore: Update dependencies`.
 - Add a Pull Request description that lists the changes based on the commits that were made. Stick to the
-  commit messages but remove the "chore" prefix. For example:
+  commit messages but remove the "chore" prefix. Add a `## Decisions and skipped steps` section when any phase was
+  skipped or isolated, or a non-default branch or worktree was used. For example:
 
 ```md
 Updated the following dependencies:
