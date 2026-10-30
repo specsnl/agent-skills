@@ -13,8 +13,8 @@ migration, Specsnl image naming and the `create-pr` title rules. For any other p
 already uses.
 
 Invoke the `executing-commands` skill before running any project command. It decides how commands run in this
-project (`task` targets, the containers, or the host). In Specs projects every command MUST be executed via `task`.
-Never run composer, npm, node, or php directly on the host when the project runs them in containers.
+project: a `task` target first, then the containers, and the host only as a last resort. Never run composer, npm,
+node, or php directly on the host while a container route exists.
 
 Each phase specifies its own error-handling policy. Some phases allow attempting a fix before
 aborting — follow the per-phase instructions rather than a blanket stop rule. A phase that does not apply to the
