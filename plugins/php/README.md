@@ -12,8 +12,9 @@ Claude: `claude plugin install php@specs`
 
 **executing-commands**:  
 REQUIRED: Execute this skill before running ANY project commands (composer, npm, php, docker, etc.).
-Determines how commands must run in this project: through the Taskfile when there is one (`task --list`
-is the source of truth), never directly on the host when the project runs in containers.
+It decides how each command runs in this project: a project task, the Taskfile's Compose wrapper,
+Docker Compose, a pinned `docker run`, or (last resort) the host. Do not run composer, npm, node or
+php directly on the host while a container route exists.
 
 **php-checks**:  
 Prepare the environment and run the PHP quality tools of a project locally — code style
