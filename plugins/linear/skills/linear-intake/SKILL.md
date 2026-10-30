@@ -125,7 +125,7 @@ These rules always apply, regardless of the source:
 - **Never** refer to the source issue in the text — do not mention it in the title, description, or body (including references like "see original ticket", "as mentioned in the source issue", or "screenshot from original")
 - **Never** mention the source team code (`{{INPUT_TEAM}}`) in the title or description of the new issue
 - **Always** copy screenshots from the source into a `## Screenshots` section at the bottom of the new issue
-- **When unclear which project to pick**: ask the user and list all available project options
+- **When unclear which project to pick**: pick the best match from the selection logic, otherwise the default project ({{DEFAULT_PROJECT}}), and name the choice in your reply — not in the issue. Only ask when someone can answer (see the `autonomous-execution` skill of the `code` plugin): list all available project options, with your pick as the recommended one
 
 ---
 
@@ -152,7 +152,7 @@ Always assign to one of these {{OUTPUT_TEAM}} projects:
 6. Infer **priority** from language signals.
 7. Select the **project** (default: {{DEFAULT_PROJECT}}).
 8. Create the new issue(s) in Linear under team `{{OUTPUT_TEAM}}` with the correct project.
-9. Reply with all new issue URL(s).
+9. Reply with all new issue URL(s), plus any choice you made on your own (project, priority, split into several issues).
 10. Learn from this process and propose improvements to this skill if you spot them.
 
 > **Always create NEW issues in `{{OUTPUT_TEAM}}`.** Never edit or comment on the source issue.

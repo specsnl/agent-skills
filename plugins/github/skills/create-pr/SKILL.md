@@ -58,13 +58,18 @@ Report:
 Invoke the `ci-green-check` skill — it runs whatever checks are discovered in Phase 1 that can run
 locally, and hands off to `php-checks` (from the `php` plugin) in PHP projects.
 
-**Do not proceed to Phase 3 if any check fails.**
+If a check fails, run `ci-green-check`'s fix loop first. Never weaken a check to get it green. When
+checks still fail after that, continue with the PR as a **draft** (`gh pr create --draft`) and list
+the failing checks with their errors in the body, under `## Decisions and skipped steps`. When a
+draft PR isn't possible, skip the PR and report the failing checks instead (see the
+`autonomous-execution` skill of the `code` plugin).
 
 ---
 
 ## Phase 3 — Ensure branch and commits are ready
 
-- Confirm the working tree is clean (`git status`)
+- Check the working tree (`git status`). Uncommitted changes are not part of the PR: leave them
+  untouched and mention them in the report, unless they belong to this work and should be committed
 - Confirm not on `main`/`master`/`develop` — if so, create a branch first:
 
   ```bash
@@ -103,5 +108,7 @@ EOF
 - Keep it short — a few bullets, no paragraphs
 - `## Summary`: 2–4 short bullets of what changed
 - Never mention Claude, AI, or that the work was done in a Claude session
+- When the run made decisions or skipped steps, add a `## Decisions and skipped steps` section listing
+  them
 
 After creating: output the PR URL and the list of CI jobs that will run on it (from Phase 1).

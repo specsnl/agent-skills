@@ -13,10 +13,9 @@ description: >
 # PHP checks
 
 > **Prerequisite — Command execution rules apply.**
-> The `executing-commands` skill governs how every command in this skill must be run.
-> Never run `php`, `composer`, `npm`, `node`, `docker`, or `docker compose` directly on the host
-> when the project runs them in containers. When the project has a Taskfile, always use
-> `task <task-name>`; run `task --list` first to see what this project actually exposes.
+> The `executing-commands` skill governs how every command in this skill must be run: a project task
+> first (run `task --list` to see what this project actually exposes), then its Compose wrapper,
+> Docker Compose, a pinned `docker run`, and the host only as a last resort.
 
 This skill is the stack-specific half of `ci-green-check`. That skill discovers which checks exist
 (Taskfile + `.github/workflows`), drives the fix loop and writes the final report. This one provides
@@ -28,15 +27,21 @@ When the project has a Taskfile, check that `task` is installed:
 task --version 2>/dev/null || echo "task not installed"
 ```
 
-If `task` is not installed, do not attempt to run commands directly. Stop and alert the user — `task`
-is required. Ask the user to install it first (`brew install go-task/tap/go-task` on macOS).
+If `task` is not installed, follow the "When `task` is not installed" rule of `executing-commands`: run
+the command the task would have run through Docker Compose, and recommend installing `task` in the
+report (`brew install go-task/tap/go-task` on macOS).
 
 **Laravel only** — Larastan, `ide-helper` and `artisan` apply only when `laravel/framework` is a
 dependency in `composer.json`. Skip everything marked Laravel only in other projects.
 
 ## Task naming in Specs projects
 
-The Taskfile is split into namespaces (`composer`, `artisan`, `npm`, `db`, `md`, `setup`, `e2e`,
+The task names in this skill are those of the Specs template. When a project doesn't have one, use its
+equivalent, found as described in "Specs task names and project equivalents" of `executing-commands`
+(another task name, a composer or `package.json` script, a Makefile target, the CI step, or the tool
+itself); when there is no equivalent, skip that check and say so in the report.
+
+The Specs template's Taskfile is split into namespaces (`composer`, `artisan`, `npm`, `db`, `md`, `setup`, `e2e`,
 `cleanup`, `worktrees`). Wildcard tasks take the rest of the name as their argument, and everything
 after `--` is forwarded to the underlying command:
 
@@ -47,12 +52,12 @@ after `--` is forwarded to the underlying command:
 | `task composer:install`       | `composer install` inside the `php` service                                                   |
 | `task composer:update`        | `composer update --with-all-dependencies`                                                     |
 | `task artisan:run:<command>`  | **Laravel only:** `php artisan <command>` (colons included: `artisan:run:migrate:fresh`)      |
-| `task npm:script:<name>`      | an npm **script** from `package.json` (`build`, `test:e2e`, …)                                |
-| `task npm:cmd:<name>`         | a raw **npm command** (`audit`, `outdated`, …)                                                |
+| `task <pm>:script:<name>`     | a **script** from `package.json` (`build`, `test:e2e`, …); `<pm>` is `npm`, `pnpm` or `yarn`  |
+| `task <pm>:cmd:<name>`        | a raw **package manager command** (`audit`, `outdated`, …)                                    |
 | `task md:checkstyle`          | markdownlint over the repo                                                                    |
 | `task md:fixstyle`            | fix table spacing, then markdownlint `--fix`                                                  |
 | `task checkall`               | `composer:script:checkall` + `md:checkstyle`                                                  |
-| `task dc:run:<service> -- …`  | last-resort escape hatch into a compose service                                               |
+| `task dc:run:<service> -- …`  | any command in a Compose service, when no specific task exists                                |
 
 Older projects may still use the previous `composer:run:*` / `npm:run:*` / `composer:do:*` naming,
 and non-Specs projects may use their own task names or have no Taskfile at all.
@@ -63,7 +68,7 @@ exposes.
 
 ## Step 1: Prepare the environment
 
-When the Taskfile has an `up` task:
+Start the project: `task up`, or the project's equivalent. When the Taskfile has an `up` task:
 
 ```bash
 task up
@@ -74,8 +79,8 @@ build, composer and npm install, `key:generate`, `storage:link`, fresh migration
 `testing`, asset build) when the project has never been started, and brings the containers up. It is
 idempotent — run it rather than reproducing those steps by hand.
 
-If dependencies drifted after a pull (new migrations, changed lock files), run `task refresh` when
-the Taskfile has it.
+If dependencies drifted after a pull (new migrations, changed lock files), run `task refresh`, or the
+project's equivalent.
 
 Without those tasks, prepare the environment through `executing-commands`: start the services when
 the project has Compose files, then install the dependencies (`composer install`). Libraries without
@@ -128,7 +133,10 @@ Also run `composer validate --strict` and `composer audit`, which every project 
 list against the CI workflows that `ci-green-check` discovered: a tool CI runs is a check, even when
 no script or task wraps it.
 
-### The fast path in Specs projects
+### The fast path: the full check suite
+
+Run the full check suite: `task checkall`, or the project's equivalent (e.g. a `check` / `ci` task,
+or a `composer run-script` aggregate such as `test` or `ci`):
 
 ```bash
 task checkall
@@ -138,9 +146,13 @@ This is what CI effectively gates on: `composer:script:checkall` runs `composer 
 `checkstyle` (phpcs), `checktype` (phpstan), `test` (phpunit), `rector-dry` and `composer audit`, and
 `md:checkstyle` lints the markdown. Prefer it over running the tools one by one.
 
-### Individual tools in Specs projects
+### Individual tools
 
-Run these when `checkall` fails and you want a tight feedback loop on one tool.
+Run these when `checkall` fails and you want a tight feedback loop on one tool. They are the Specs
+template's tasks; in other projects use the matching composer script, task or `vendor/bin` binary from
+[Find the tools](#find-the-tools). Lint the markdown only when the project does (`task md:checkstyle`,
+or the project's equivalent markdown lint command) — don't add a markdown linter to a project without
+one.
 
 ```bash
 # Code style — PHP_CodeSniffer
@@ -149,7 +161,7 @@ task composer:script:fixstyle            # phpcbf -n — auto-fixes, run this fi
 
 # Static analysis — PHPStan (Larastan in Laravel projects)
 task composer:script:checktype
-task composer:script:update-type-baseline    # only when the user explicitly agrees to baseline it
+task composer:script:update-type-baseline    # never on your own — only when the user explicitly asks for it
 
 # Tests — PHPUnit (not Pest)
 task composer:script:test
@@ -162,15 +174,21 @@ task composer:script:rector                  # applies the changes
 
 # Dependency audits
 task composer:cmd:audit
-task npm:cmd:audit
+task <pm>:cmd:audit                          # e.g. task pnpm:cmd:audit
 
 # Markdown
 task md:checkstyle
 task md:fixstyle
 
 # Front-end build
-task npm:script:build
+task <pm>:script:build                       # e.g. task pnpm:script:build
 ```
+
+The frontend commands go through the project's Node package manager (`<pm>`), detected by the "Node
+package manager" section of `executing-commands`, which also maps each intent to its `<pm>` command. The
+tasks are named after the package manager (`npm:*`, `pnpm:*`, `yarn:*`): use the namespace that matches
+`<pm>`. When the Taskfile only has another manager's namespace, run the `<pm>` command (e.g. `pnpm audit`,
+`pnpm run build`) through `executing-commands` instead.
 
 Pass extra arguments after `--`, e.g. `task composer:cmd:outdated -- --direct --major-only` or
 `task composer:script:test -- --filter=SomeTest`.
@@ -180,7 +198,10 @@ Pass extra arguments after `--`, e.g. `task composer:cmd:outdated -- --direct --
 `barryvdh/laravel-ide-helper`, reproduce it with `task artisan:run:ide-helper:models -- --write` (or
 `php artisan ide-helper:models --write` through `executing-commands`) and commit any resulting diff.
 
-### E2E (only in projects with an `e2e` namespace)
+### E2E (only in projects with an E2E suite)
+
+Run the E2E suite: `task e2e:docker:test`, or the project's equivalent (e.g. a `test:e2e` package
+script run through `executing-commands`).
 
 ```bash
 task e2e:docker:test     # what CI runs, against the running stack
@@ -191,9 +212,14 @@ task e2e:test            # Playwright UI on the host
 
 ## Step 3: Hand back
 
-Report per tool what ran and what its result was, so `ci-green-check` can drive the fix loop and
+Never get a tool green by weakening it: no baseline updates, no `@phpstan-ignore` / `@psalm-suppress`,
+no skipped tests. When a failure can't be fixed, report the remaining errors instead (see the
+`autonomous-execution` skill of the `code` plugin).
+
+Report per tool the command that actually ran (not the Specs task name, when another one ran) and its
+result, so `ci-green-check` can drive the fix loop and
 produce the final ✅ / ⚠️ report. Do not declare the work done from here — that is `ci-green-check`'s
 Step 6.
 
-Checks that cannot run locally and must be left to CI: the Composer/NPM cache-warming jobs and
+Checks that cannot run locally and must be left to CI: the Composer and Node package manager cache-warming jobs and
 anything needing `COMPOSER_AUTH_JSON` beyond a local `auth.json`.

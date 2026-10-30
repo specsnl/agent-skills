@@ -18,8 +18,17 @@ across every site it touches, section banners, redundant docblocks, diff/session
 commented-out code, comments compensating for a bad name), style rules, and a pre-finish sweep of
 the diff. Local convention in the file always wins.
 
+**autonomous-execution**:  
+The shared "never dead-end" convention for every skill and command, so autonomous runs (headless, CI,
+scheduled, background) always carry the work forward. Resolve a blocker safely or skip only the
+affected part, ask only when someone can answer (with an autonomous default for every question),
+respect the hard limits (never destroy others' work, never weaken checks, never publish secrets),
+record decisions in the result, and file sanitized "skill gap" issues for situations a skill doesn't
+cover yet.
+
 **autofix-markdown-tables**:  
 Automatically detect and fix misaligned markdown tables across all `.md` files in the project.
-Prefers the project's own `task md:fix-tables` / `task md:fixstyle`, and falls back to running
-`markdown-table-formatter` via Docker when there is no Taskfile. Always review the diff afterwards
-to confirm only whitespace/padding changed — no content should be altered.
+Prefers the project's own task (`task md:fix-tables` / `task md:fixstyle` in Specs projects) or
+markdown formatter (e.g. Prettier), and falls back to running `markdown-table-formatter` via Docker
+when the project has neither. Always review the diff afterwards to confirm only whitespace/padding
+changed — no content should be altered.

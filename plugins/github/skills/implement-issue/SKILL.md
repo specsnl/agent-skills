@@ -33,7 +33,10 @@ Extract and note:
 - Acceptance criteria / definition of done.
 - Any linked issues, designs, or discussion in comments that change the approach.
 
-If the requirement is ambiguous, ask the user before implementing.
+If the requirement is ambiguous, pick the most likely interpretation and record the assumptions in
+the commits and the final report. Ask only when someone can answer (see the `autonomous-execution`
+skill of the `code` plugin), offering that interpretation as the recommended option; without an
+answer, carry on with it.
 
 ---
 
@@ -41,8 +44,10 @@ If the requirement is ambiguous, ask the user before implementing.
 
 Never implement directly on the base branch.
 
-1. Confirm the working tree is clean (`git status`) and note the current base
-   branch (usually `main`).
+1. Check the working tree (`git status`) and note the current base branch
+   (usually `main`). When it has uncommitted changes, leave them untouched and
+   work in a fresh worktree from the base branch instead
+   (`git worktree add -b <branch> <path> origin/<base>`).
 2. Create and switch to a new branch with a descriptive name derived from the
    issue id and a short slug of its title:
    - `feat/<issue-id>-<slug>` for new functionality
@@ -77,8 +82,10 @@ Commit as you complete logical units of work — not one large dump at the end.
 
 ## Phase 5 — Stop before the PR
 
-**Do NOT open a pull request.** When the work is committed on the branch, report
-what was done and stop.
+**Do NOT open a pull request.** This is a deliberate end state, not a dead end:
+when the work is committed on the branch, end with a complete report — the
+branch, the commits, the check results, the assumptions made and any skipped
+parts — rather than a question.
 
 Only when the user explicitly asks for a PR, invoke the **create-pr** skill, which
 audits CI, verifies the title format and branch rules, and opens the PR correctly.

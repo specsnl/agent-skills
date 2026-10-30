@@ -11,37 +11,37 @@
         {
             "name": "laravel",
             "source": "./plugins/laravel",
-            "version": "0.0.25",
+            "version": "0.0.26",
             "description": "A Specs Laravel specific plugin"
         },
         {
             "name": "php",
             "source": "./plugins/php",
-            "version": "0.0.1",
+            "version": "0.0.2",
             "description": "A PHP-specific plugin for Specs"
         },
         {
             "name": "docker",
             "source": "./plugins/docker",
-            "version": "0.0.9",
+            "version": "0.0.10",
             "description": "A Specs Docker specific plugin"
         },
         {
             "name": "linear",
             "source": "./plugins/linear",
-            "version": "0.0.6",
+            "version": "0.0.7",
             "description": "A Specs plugin for creating Linear issues from raw client input"
         },
         {
             "name": "code",
             "source": "./plugins/code",
-            "version": "0.0.7",
+            "version": "0.0.8",
             "description": "A Specs plugin with cross-language code authoring conventions"
         },
         {
             "name": "github",
             "source": "./plugins/github",
-            "version": "0.0.13",
+            "version": "0.0.14",
             "description": "A GitHub-specific plugin for Specs"
         },
         {

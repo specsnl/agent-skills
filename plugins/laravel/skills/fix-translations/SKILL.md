@@ -22,7 +22,9 @@ translate them, fix errors and typos, commit the changes, and open a PR.
 
 ## Workflow
 
-Execute these phases in order.
+Execute these phases in order. Never dead-end (see the `autonomous-execution` skill of the `code`
+plugin): a value whose translation stays unclear after using its context is left as it is and listed
+in the PR body, and the rest of the work carries on.
 
 ### Phase 1 — Scan for untranslated values
 

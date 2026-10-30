@@ -46,9 +46,11 @@ Check that `task` is installed:
 task --version 2>/dev/null || echo "task not installed"
 ```
 
-If a Taskfile exists but `task` is not installed, stop and ask the user to install it
-(`brew install go-task/tap/go-task` on macOS) rather than running the underlying commands directly.
-If there is no Taskfile, run the workflow's commands directly.
+If a Taskfile exists but `task` is not installed, read the definition of each task you need and run
+the commands it would run, the same way it runs them (in PHP repositories: through the tiers of the
+`executing-commands` skill, which reproduce a task's Docker Compose call). Recommend installing `task`
+in the report (`brew install go-task/tap/go-task` on macOS). If there is no Taskfile, run the
+workflow's commands directly.
 
 ### 1b. Scan GitHub workflows
 
@@ -130,7 +132,11 @@ When a check fails:
 6. Repeat until the check is green, then continue to the next check.
 
 **Never "fix" a test by weakening its assertions** unless the test was testing the wrong thing and
-you can explain why.
+you can explain why. No baselines, no ignore annotations, no skipped tests either.
+
+When a failure can't be fixed, don't stop and don't weaken the check: record it as failing with its
+error, continue with the remaining checks, and report it as ❌ in Step 6 (see the
+`autonomous-execution` skill of the `code` plugin).
 
 ---
 
@@ -149,7 +155,8 @@ After all local checks pass, report checks that were skipped:
 
 ## Step 6: Done
 
-When all locally runnable checks are green, confirm:
+When all locally runnable checks are green, confirm (list any check that stayed red as
+`❌ [tool]: <error summary>` instead, and don't call it ready):
 
 ```text
 ✅ All local checks passed:
