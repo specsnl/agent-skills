@@ -24,6 +24,9 @@ project (according to Phase 0) is skipped, not failed.
 
 When committing changes at the end of each phase, only stage files that are directly related to that phase's purpose. If other files have changed that are unrelated to the phase (e.g., a markdown file or documentation updated as a side-effect of running a command), commit those separately with a descriptive commit message that reflects what those changes actually are. Never bundle unrelated changes into a phase commit.
 
+Commit messages, the PR body and the report name the command that actually ran, not the Specs task name (e.g.
+`composer run-script fix` rather than `task composer:script:fixstyle` when the project has no such task).
+
 ## Phase 0 --- Project Detection
 
 Record what the project has before changing anything, so later phases can skip cleanly instead of failing. Use file
@@ -53,7 +56,8 @@ files can live in subdirectories and use variant names such as `compose.override
 7. **Taskfile:** whether there is one, and which tasks it has (`task --list`). Note in particular whether `up`,
 `refresh`, `checkall`, `build`, `reset`, `composer:update`, `<pm>:update`, `<pm>:corepack:update` and
 `setup:auth` exist. Older Specs projects may use the previous `composer:run:*` / `npm:run:*` / `composer:do:*`
-naming — use whatever `task --list` shows.
+naming — use whatever `task --list` shows. For each missing one, note the project's equivalent (see the Command
+reference below), or that there is none.
 8. **Default branch:** `git symbolic-ref --short refs/remotes/origin/HEAD` (strip the `origin/` prefix), or
 `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` when the symbolic ref is not set. Every phase
 below refers to it as `<default>`; never assume `main`.
@@ -62,11 +66,13 @@ Summarize the findings to the user before continuing.
 
 ### Command reference
 
-The phases below name the action; use the command that fits the project. In Specs projects, use the `task` target
-(when `task --list` has it). Otherwise run the plain command through the `executing-commands` skill, which decides
-whether it runs in a container or on the host.
+The phases below name the action; use the command that fits the project. The `task` targets are those of the Specs
+template: use one when `task --list` has it. Otherwise use the project's equivalent, found as described in "Specs
+task names and project equivalents" of `executing-commands` (another task name, a composer or `package.json` script,
+a Makefile target, the CI step), or the plain command from the last column. Run it through `executing-commands`,
+which decides whether it runs in a container or on the host.
 
-| Action                       | Specs project             | Other projects                                                                        |
+| Action                       | Specs template task       | Other projects                                                                        |
 |------------------------------|---------------------------|---------------------------------------------------------------------------------------|
 | Start the project            | `task up`                 | `docker compose up -d` (only with Compose files)                                      |
 | Install from the lock files  | `task refresh`            | `composer install` (+ `<pm>`'s frozen install, e.g. `pnpm install --frozen-lockfile`) |

@@ -36,7 +36,12 @@ dependency in `composer.json`. Skip everything marked Laravel only in other proj
 
 ## Task naming in Specs projects
 
-The Taskfile is split into namespaces (`composer`, `artisan`, `npm`, `db`, `md`, `setup`, `e2e`,
+The task names in this skill are those of the Specs template. When a project doesn't have one, use its
+equivalent, found as described in "Specs task names and project equivalents" of `executing-commands`
+(another task name, a composer or `package.json` script, a Makefile target, the CI step, or the tool
+itself); when there is no equivalent, skip that check and say so in the report.
+
+The Specs template's Taskfile is split into namespaces (`composer`, `artisan`, `npm`, `db`, `md`, `setup`, `e2e`,
 `cleanup`, `worktrees`). Wildcard tasks take the rest of the name as their argument, and everything
 after `--` is forwarded to the underlying command:
 
@@ -63,7 +68,7 @@ exposes.
 
 ## Step 1: Prepare the environment
 
-When the Taskfile has an `up` task:
+Start the project: `task up`, or the project's equivalent. When the Taskfile has an `up` task:
 
 ```bash
 task up
@@ -74,8 +79,8 @@ build, composer and npm install, `key:generate`, `storage:link`, fresh migration
 `testing`, asset build) when the project has never been started, and brings the containers up. It is
 idempotent — run it rather than reproducing those steps by hand.
 
-If dependencies drifted after a pull (new migrations, changed lock files), run `task refresh` when
-the Taskfile has it.
+If dependencies drifted after a pull (new migrations, changed lock files), run `task refresh`, or the
+project's equivalent.
 
 Without those tasks, prepare the environment through `executing-commands`: start the services when
 the project has Compose files, then install the dependencies (`composer install`). Libraries without
@@ -128,7 +133,10 @@ Also run `composer validate --strict` and `composer audit`, which every project 
 list against the CI workflows that `ci-green-check` discovered: a tool CI runs is a check, even when
 no script or task wraps it.
 
-### The fast path in Specs projects
+### The fast path: the full check suite
+
+Run the full check suite: `task checkall`, or the project's equivalent (e.g. a `check` / `ci` task,
+or a `composer run-script` aggregate such as `test` or `ci`):
 
 ```bash
 task checkall
@@ -138,9 +146,13 @@ This is what CI effectively gates on: `composer:script:checkall` runs `composer 
 `checkstyle` (phpcs), `checktype` (phpstan), `test` (phpunit), `rector-dry` and `composer audit`, and
 `md:checkstyle` lints the markdown. Prefer it over running the tools one by one.
 
-### Individual tools in Specs projects
+### Individual tools
 
-Run these when `checkall` fails and you want a tight feedback loop on one tool.
+Run these when `checkall` fails and you want a tight feedback loop on one tool. They are the Specs
+template's tasks; in other projects use the matching composer script, task or `vendor/bin` binary from
+[Find the tools](#find-the-tools). Lint the markdown only when the project does (`task md:checkstyle`,
+or the project's equivalent markdown lint command) — don't add a markdown linter to a project without
+one.
 
 ```bash
 # Code style — PHP_CodeSniffer
@@ -186,7 +198,10 @@ Pass extra arguments after `--`, e.g. `task composer:cmd:outdated -- --direct --
 `barryvdh/laravel-ide-helper`, reproduce it with `task artisan:run:ide-helper:models -- --write` (or
 `php artisan ide-helper:models --write` through `executing-commands`) and commit any resulting diff.
 
-### E2E (only in projects with an `e2e` namespace)
+### E2E (only in projects with an E2E suite)
+
+Run the E2E suite: `task e2e:docker:test`, or the project's equivalent (e.g. a `test:e2e` package
+script run through `executing-commands`).
 
 ```bash
 task e2e:docker:test     # what CI runs, against the running stack
@@ -197,7 +212,8 @@ task e2e:test            # Playwright UI on the host
 
 ## Step 3: Hand back
 
-Report per tool what ran and what its result was, so `ci-green-check` can drive the fix loop and
+Report per tool the command that actually ran (not the Specs task name, when another one ran) and its
+result, so `ci-green-check` can drive the fix loop and
 produce the final ✅ / ⚠️ report. Do not declare the work done from here — that is `ci-green-check`'s
 Step 6.
 
