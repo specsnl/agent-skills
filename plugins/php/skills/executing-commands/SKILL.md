@@ -38,7 +38,9 @@ task <ns>:<name>
 
 `task --list` is the source of truth for any project: Specs projects, older projects with different task names,
 and third-party projects with their own Taskfile (`Taskfile.yml`, `Taskfile.yaml`, `Taskfile.dist.yml`, …). Only
-use tasks it shows. Prefer creating or extending a task over working around a missing one.
+use tasks it shows. The task names other skills mention are the Specs template's; when the project lacks one, find
+its equivalent (see [Specs task names and project equivalents](#specs-task-names-and-project-equivalents)). Prefer
+creating or extending a task over working around a missing one.
 
 ### Tier 2 — the Taskfile's Compose wrapper
 
@@ -214,9 +216,9 @@ has `pnpm:*` or `yarn:*` tasks instead. Skills and commands write them as `<pm>:
    project's package manager.
 3. Without any package manager namespace, use the same tier 2 route.
 
-## Task namespaces (Specs projects)
+## Task namespaces (Specs template)
 
-The Taskfile of a Specs project is split into namespaces that are included from `Taskfile.yml` (`.taskfiles/Taskfile.<ns>.yml`).
+The tasks below are those of the Specs template (`specsnl/specs-laravel-project`). The Taskfile of a Specs project is split into namespaces that are included from `Taskfile.yml` (`.taskfiles/Taskfile.<ns>.yml`).
 The wildcard tasks take the rest of the task name as their argument, and everything after `--` is
 forwarded to the underlying command:
 
@@ -243,6 +245,30 @@ For example: `task artisan:run:db:seed -- --class='Database\Seeders\E2ETestSeede
 Older projects may still use the previous `composer:run:*` / `npm:run:*` / `composer:do:*` naming, and
 non-Specs projects may use entirely different names — `task --list` is always the source of truth.
 
+## Specs task names and project equivalents
+
+Task names in the skills and commands of these plugins (`task checkall`, `task md:checkstyle`, `task up`, …) are
+the names of the Specs template. Each names an intent — "run the full check suite", "lint the markdown" — with the
+Specs task as the preferred, concrete example. When the project doesn't have that task, look for its equivalent in
+this order:
+
+1. `task --list`: the same intent under a different name (e.g. `lint:md`, `test`, `check`).
+2. Composer scripts (`composer run-script --list`, or the `scripts` section of `composer.json`) and the `scripts`
+   of `package.json`.
+3. Other task runners: `Makefile` targets, `justfile` recipes.
+4. The CI workflows (`.github/workflows/*.yml`): the steps that run the check in CI.
+5. The tool itself (`vendor/bin/<tool>`, or a `node_modules/.bin` binary).
+
+Run whatever you find through the [Execution Model](#execution-model) tiers: a composer script still runs in a
+container, not on the host.
+
+**When no equivalent exists:** skip that step and say so in the report. Don't introduce a new tool or config just
+to satisfy the step (e.g. don't add markdownlint to a project that doesn't lint markdown). Offering to add a task
+for it is fine.
+
+**Generated text** — commit messages, PR bodies, reports — names the command that actually ran, not the Specs task
+name.
+
 ## Container Context
 
 The default execution service is `php` (in projects that use another name for the PHP service, such as `app`,
@@ -267,6 +293,9 @@ Then retry the original command. Without an `up` task, start the services throug
 To check if services are running, use `task ps` (or `docker compose --file … ps`).
 
 ## Examples
+
+These are the Specs template's tasks; in other projects, use their equivalents (see
+[Specs task names and project equivalents](#specs-task-names-and-project-equivalents)).
 
 Run tests:
 
