@@ -112,7 +112,7 @@ doesn't pollute normal seeds. Three data buckets:
 
 ## Phase 3 — Coverage matrix per role
 
-For **every role**, cover four categories. Add npm scripts:
+For **every role**, cover four categories. Add package scripts to `package.json`:
 `test:e2e:install` (`playwright install --with-deps chromium`), `test:e2e`,
 `test:e2e:ui`, `test:e2e:headed`, `test:e2e:debug`, `test:e2e:report`, `test:e2e:codegen`.
 
@@ -130,17 +130,21 @@ reuse the spec and branch extra assertions on `test.info().project.name`.
 
 ## Phase 4 — CI job
 
+`<pm>` is the project's Node package manager (npm, pnpm or yarn), detected as described in the "Node
+package manager" section of the `executing-commands` skill (`php` plugin). Never assume npm.
+
 Specs projects run E2E through Docker and Task, against the real stack — not `artisan serve`. Add a
 job to the existing CI workflow that mirrors `.taskfiles/Taskfile.e2e.yml`:
 
-1. Install Task (`go-task/setup-task`), create `auth.json` from `COMPOSER_AUTH_JSON`, warm the npm
-   cache with `actions/setup-node`.
+1. Install Task (`go-task/setup-task`), create `auth.json` from `COMPOSER_AUTH_JSON`, warm the package
+   manager cache with `actions/setup-node` (its `cache:` must match the project's package manager:
+   `npm`, `pnpm` or `yarn`; pnpm also needs `pnpm/action-setup` before it).
 2. `task ci:up` — the CI variant of `task up`: env files, `composer:install`, `npm:install`, compose
    up, `key:generate`, `storage:link`, wait for the DB, `db:migrate-fresh:local`, `npm:script:build`.
    Filament won't render without that asset build.
 3. Seed the deterministic fixture:
    `task 'artisan:run:db:seed' -- --class='Database\Seeders\E2ETestSeeder'`.
-4. `task e2e:docker:test` — runs `npm run test:e2e` inside the `e2e-playwright` compose service, so
+4. `task e2e:docker:test` — runs `<pm> run test:e2e` inside the `e2e-playwright` compose service, so
    the browsers come from the image and need no `playwright install` step.
 5. Upload `playwright-report/` with `if: always()`; upload traces on failure.
 
