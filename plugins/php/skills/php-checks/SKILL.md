@@ -13,10 +13,9 @@ description: >
 # PHP checks
 
 > **Prerequisite — Command execution rules apply.**
-> The `executing-commands` skill governs how every command in this skill must be run.
-> Never run `php`, `composer`, `npm`, `node`, `docker`, or `docker compose` directly on the host
-> when the project runs them in containers. When the project has a Taskfile, always use
-> `task <task-name>`; run `task --list` first to see what this project actually exposes.
+> The `executing-commands` skill governs how every command in this skill must be run: a project task
+> first (run `task --list` to see what this project actually exposes), then its Compose wrapper,
+> Docker Compose, a pinned `docker run`, and the host only as a last resort.
 
 This skill is the stack-specific half of `ci-green-check`. That skill discovers which checks exist
 (Taskfile + `.github/workflows`), drives the fix loop and writes the final report. This one provides
@@ -28,8 +27,9 @@ When the project has a Taskfile, check that `task` is installed:
 task --version 2>/dev/null || echo "task not installed"
 ```
 
-If `task` is not installed, do not attempt to run commands directly. Stop and alert the user — `task`
-is required. Ask the user to install it first (`brew install go-task/tap/go-task` on macOS).
+If `task` is not installed, follow the "When `task` is not installed" rule of `executing-commands`: run
+the command the task would have run through Docker Compose, and recommend installing `task` in the
+report (`brew install go-task/tap/go-task` on macOS).
 
 **Laravel only** — Larastan, `ide-helper` and `artisan` apply only when `laravel/framework` is a
 dependency in `composer.json`. Skip everything marked Laravel only in other projects.
@@ -52,7 +52,7 @@ after `--` is forwarded to the underlying command:
 | `task md:checkstyle`          | markdownlint over the repo                                                                    |
 | `task md:fixstyle`            | fix table spacing, then markdownlint `--fix`                                                  |
 | `task checkall`               | `composer:script:checkall` + `md:checkstyle`                                                  |
-| `task dc:run:<service> -- …`  | last-resort escape hatch into a compose service                                               |
+| `task dc:run:<service> -- …`  | any command in a Compose service, when no specific task exists                                |
 
 Older projects may still use the previous `composer:run:*` / `npm:run:*` / `composer:do:*` naming,
 and non-Specs projects may use their own task names or have no Taskfile at all.
