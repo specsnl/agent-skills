@@ -13,8 +13,8 @@ migration, Specsnl image naming and the `create-pr` title rules. For any other p
 already uses.
 
 Invoke the `executing-commands` skill before running any project command. It decides how commands run in this
-project: a `task` target first, then the containers, and the host only as a last resort. Never run composer, npm,
-node, or php directly on the host while a container route exists.
+project: a `task` target first, then the containers, and the host only as a last resort. Never run composer, the
+Node package manager, node, or php directly on the host while a container route exists.
 
 Each phase specifies its own error-handling policy. Some phases allow attempting a fix before
 aborting — follow the per-phase instructions rather than a blanket stop rule. A phase that does not apply to the
@@ -38,8 +38,10 @@ checks and `git ls-files` (which skips untracked directories like `vendor/` and 
 Steps marked **Laravel only** run only when `laravel/framework` is a dependency.
 3. **Library or application:** the project is a library when `composer.json` has `"type": "library"` and/or there
 is no committed `composer.lock` (`git ls-files composer.lock` prints nothing).
-4. **Frontend:** whether there is a tracked `package.json`, and which lock file sits next to it
-(`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`/`bun.lockb`).
+4. **Frontend:** whether there is a tracked `package.json`, and its Node package manager (`<pm>`: npm, pnpm or yarn),
+detected as described in the "Node package manager" section of `executing-commands` (`packageManager` first, then
+the lock file). Record any conflicting signals and the choice. A Bun project skips the frontend phases (5, 6 and the
+frontend audit) and says so in the report.
 5. **Compose files:** all Docker Compose files tracked in the repository, not just the root `compose.yml`. Compose
 files can live in subdirectories and use variant names such as `compose.override.yml`, `compose.ci.yml` or
 `docker/compose.dev.yml`. Find them with `git ls-files`, matching `compose.yml`, `compose.*.yml`,
@@ -63,18 +65,22 @@ The phases below name the action; use the command that fits the project. In Spec
 (when `task --list` has it). Otherwise run the plain command through the `executing-commands` skill, which decides
 whether it runs in a container or on the host.
 
-| Action                       | Specs project             | Other projects                                                             |
-|------------------------------|---------------------------|----------------------------------------------------------------------------|
-| Start the project            | `task up`                 | `docker compose up -d` (only with Compose files)                           |
-| Install from the lock files  | `task refresh`            | `composer install` (+ the frontend install, e.g. `npm ci`)                 |
-| Update Composer dependencies | `task composer:update`    | `composer update --with-all-dependencies`                                  |
-| Raw Composer command         | `task composer:cmd:<cmd>` | `composer <cmd>`                                                           |
-| Run the project checks       | `task checkall`           | the checks found by the `php-checks` skill                                 |
-| Update frontend dependencies | `task npm:update`         | the package manager's update (e.g. `npm update`)                           |
-| Build frontend assets        | `task npm:script:build`   | the `build` script, when `package.json` defines one (e.g. `npm run build`) |
-| Frontend audit               | `task npm:cmd:audit`      | the package manager's audit (e.g. `npm audit`)                             |
-| Rebuild local Docker images  | `task build`              | `docker compose build --pull`                                              |
-| Reset the environment        | `task reset`              | `docker compose down` followed by `docker compose up -d`                   |
+| Action                       | Specs project             | Other projects                                                                        |
+|------------------------------|---------------------------|---------------------------------------------------------------------------------------|
+| Start the project            | `task up`                 | `docker compose up -d` (only with Compose files)                                      |
+| Install from the lock files  | `task refresh`            | `composer install` (+ `<pm>`'s frozen install, e.g. `pnpm install --frozen-lockfile`) |
+| Update Composer dependencies | `task composer:update`    | `composer update --with-all-dependencies`                                             |
+| Raw Composer command         | `task composer:cmd:<cmd>` | `composer <cmd>`                                                                      |
+| Run the project checks       | `task checkall`           | the checks found by the `php-checks` skill                                            |
+| Update frontend dependencies | `task npm:update`         | `<pm>`'s in-range update (e.g. `pnpm update`)                                         |
+| Build frontend assets        | `task npm:script:build`   | `<pm> run build`, when `package.json` defines a `build` script                        |
+| Frontend audit               | `task npm:cmd:audit`      | `<pm>`'s audit (e.g. `pnpm audit`)                                                    |
+| Rebuild local Docker images  | `task build`              | `docker compose build --pull`                                                         |
+| Reset the environment        | `task reset`              | `docker compose down` followed by `docker compose up -d`                              |
+
+`executing-commands` has the `<pm>` command for each intent. The `npm:*` tasks of the Specs template call `npm`
+directly: use them only when the project's npm tasks call `<pm>`, otherwise run the `<pm>` command through
+`executing-commands`.
 
 ## Phase 1 --- Repository Safety Checks
 
@@ -121,8 +127,8 @@ task targets are available) before running any commands.
 3. Ensure the environment is refreshed, so all dependencies are installed according to their respective lock files
 (and the frontend assets are rebuilt):
     - When the Taskfile has a `refresh` task: `task refresh`.
-    - Otherwise install from the lock files through `executing-commands`: `composer install`, plus the frontend
-    install when there is a `package.json` (e.g. `npm ci` for a `package-lock.json`).
+    - Otherwise install from the lock files through `executing-commands`: `composer install`, plus `<pm>`'s frozen
+    install when there is a `package.json` (e.g. `npm ci`, `pnpm install --frozen-lockfile`).
 
 Abort if any command fails.
 
@@ -193,16 +199,16 @@ For any remaining unrelated changed files, commit them separately with a descrip
 
 Abort on any failure.
 
-## Phase 5 --- NPM package manager version
+## Phase 5 --- Node package manager version
 
 Skip this phase when the project has no `package.json`.
 
-1. Update the package manager version:
+1. Update the package manager version with `corepack up`, which handles npm, pnpm and yarn alike:
     - When the Taskfile has an `npm:corepack:update` task: `task npm:corepack:update`.
-    - Otherwise, only when `package.json` pins its package manager in the `packageManager` field: update it to the
-    latest version of that manager with Corepack (e.g. `corepack use npm@latest`) through `executing-commands`.
-    Projects that do not pin a package manager skip this phase.
-2. Commit separately if there are any changes. Commit message: `chore(npm): Updated NPM package manager version`.
+    - Otherwise, only when `package.json` pins its package manager in the `packageManager` field: run `corepack up`
+    through `executing-commands`. Projects that do not pin a package manager skip this phase.
+2. Commit separately if there are any changes. Commit message: `chore(deps): Updated <pm> version` (e.g.
+`chore(deps): Updated pnpm version`).
 3. If there are no changes, skip the commit step and move on to the next phase.
 
 Abort on any failure.
@@ -211,14 +217,16 @@ Abort on any failure.
 
 Skip this phase when the project has no `package.json`.
 
-1. Update the frontend dependencies: `task npm:update` in Specs projects, otherwise the update command of the
-package manager that owns the lock file found in Phase 0 (e.g. `npm update` for `package-lock.json`).
-2. Build assets: `task npm:script:build` in Specs projects, otherwise the `build` script when `package.json` defines
-one (e.g. `npm run build`). Skip this step when there is no build script.
+1. Update the frontend dependencies with `<pm>`'s in-range update (e.g. `pnpm update`): `task npm:update` in Specs
+projects whose npm tasks call `<pm>`, otherwise the `<pm>` command through `executing-commands`.
+2. Build assets: `task npm:script:build` in Specs projects whose npm tasks call `<pm>`, otherwise `<pm> run build`
+when `package.json` defines a `build` script. Skip this step when there is no build script.
 3. Check git status for all changed files. Stage only files directly related to the frontend update (e.g., the
-lock file, `node_modules/` when it is tracked, built assets) and commit. Commit message:
-`chore(deps): Updated NPM dependencies`. For any remaining unrelated changed files, commit them separately with a
-descriptive message.
+lock file of `<pm>`, `node_modules/` when it is tracked, built assets) and commit. Commit message:
+`chore(deps): Updated <pm> dependencies` (e.g. `chore(deps): Updated pnpm dependencies`). For any remaining
+unrelated changed files, commit them separately with a descriptive message. A new lock file of another package
+manager (e.g. a `package-lock.json` next to `pnpm-lock.yaml`) means the wrong manager ran: discard it instead of
+committing it.
 4. If there are no changes, skip the commit step and move on to the next phase.
 
 Abort on any failure.
@@ -328,7 +336,9 @@ there is none, skip this phase entirely — do not create one.
 2. Inventory every updatable resource tracked in the repository (use `git ls-files`, so `vendor/` and
 `node_modules/` are skipped) and map each one to its Dependabot `package-ecosystem` and directory:
     - `composer.json` → `composer`, in the directory containing the file.
-    - `package.json` → `npm`, in the directory containing the file.
+    - `package.json` → `npm`, in the directory containing the file. Dependabot's `npm` ecosystem covers npm, yarn
+    **and** pnpm, so do not add or "fix" a separate entry for the detected package manager. Bun has its own `bun`
+    ecosystem.
     - Dockerfiles (the same set found in Phase 0, e.g. `php/Dockerfile`, `nginx/Dockerfile`) → `docker`, in the
     directory containing the file.
     - Docker Compose files (the same set found in Phase 0, e.g. `compose.yml`, `compose.*.yml`) →
@@ -364,8 +374,8 @@ State below), then report the Phase 10 summary to the user.
 1. Run the following audit commands and create a summary of the results. Suggest to the user to fix any of the issues
 that are found:
     1. Run `composer audit` (`task composer:cmd:audit` in Specs projects).
-    2. When there is a `package.json`, run the frontend audit (`task npm:cmd:audit` in Specs projects, otherwise the
-    package manager's audit, e.g. `npm audit`).
+    2. When there is a `package.json`, run `<pm>`'s audit (`task npm:cmd:audit` in Specs projects whose npm tasks
+    call `<pm>`, otherwise e.g. `pnpm audit` or `yarn npm audit --all --recursive`).
 2. Run `composer outdated --direct --major-only` (`task composer:cmd:outdated -- --direct --major-only` in Specs
 projects) to check for any major updates that are available for direct dependencies. If there are any, create a
 summary and suggest to the user to update those as well.
@@ -384,8 +394,8 @@ version suggestions.
 committed separately per the Commit Strategy):
     1. Composer updates
     2. Replaced abandoned `ilyes512` packages with `specsnl` equivalents
-    3. NPM package manager version update
-    4. NPM dependency updates
+    3. Node package manager (`<pm>`) version update
+    4. `<pm>` dependency updates
     5. Docker image version updates
     6. GitHub Actions version updates
     7. GitHub Actions runner image updates
@@ -416,7 +426,8 @@ selected).
   - In a non-Specs project without a title checker config, follow the title conventions of the repository's recent
     pull requests (and its contributing guide, if any); fall back to `Update dependencies`.
 
-  **Suggested PR body**: Include only the bullets for phases that produced actual changes. If any
+  **Suggested PR body**: Include only the bullets for phases that produced actual changes, and replace `<pm>` with
+  the detected package manager (`npm`, `pnpm` or `yarn`). If any
   additional side-effect commits were made (e.g. `docs: Updated AGENTS.md`), add them as extra bullets
   under `## Summary`.
 
@@ -424,8 +435,8 @@ selected).
   ## Summary
   - Updated Composer dependencies
   - Replaced abandoned `ilyes512` packages with `specsnl` equivalents
-  - Updated NPM package manager version
-  - Updated NPM dependencies
+  - Updated <pm> version
+  - Updated <pm> dependencies
   - Updated Docker image versions
   - Updated GitHub Actions versions
   - Updated GitHub Actions runner images
