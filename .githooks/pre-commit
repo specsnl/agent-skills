@@ -1,14 +1,29 @@
 #!/bin/bash
 set -e
 
-# In a worktree, .git is a file pointing into the main repository's .git directory,
-# so that directory must be mounted at the same path for git to work in the container.
-GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+MARKETPLACE_FILE=".claude-plugin/marketplace.json"
 
-docker run \
+plugins="$(git diff --cached --name-only -- plugins/ | cut -d'/' -f2 | sort -u)"
+[ -z "$plugins" ] && exit 0
+
+# `git commit <path>` commits a temporary next-index-*.lock and rewrites the real index afterwards, so a bump
+# staged here would be missing from the real index and reverted by the next commit. CI bumps on merge instead.
+case "$(basename "${GIT_INDEX_FILE:-}")" in
+  next-index-*.lock)
+    echo "pre-commit: 'git commit <path>' cannot stage a plugin version bump, skipping it." >&2
+    exit 0
+    ;;
+esac
+
+before="$(git hash-object "$MARKETPLACE_FILE")"
+
+git show "$(git merge-base HEAD main):$MARKETPLACE_FILE" | docker run \
   --rm \
-  --volume "$(git rev-parse --show-toplevel):/workspace" \
-  --volume "$GIT_COMMON_DIR:$GIT_COMMON_DIR" \
-  --env AUTO_STAGE=true \
+  --interactive \
+  --user "$(id -u):$(id -g)" \
+  --volume "$PWD:/workspace" \
+  --workdir /workspace \
   ghcr.io/specsnl/utils:1.15.0 \
-  bash .githooks/bump-versions.sh
+  bash .githooks/bump-versions.sh $plugins
+
+[ "$(git hash-object "$MARKETPLACE_FILE")" = "$before" ] || git add "$MARKETPLACE_FILE"
