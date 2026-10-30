@@ -23,8 +23,8 @@ below. Use the **first tier that applies**, and say which tier you used.
 | 4    | Plain `docker run`             | The project has no Compose setup (and no scaffold was added)        | `docker run --rm … <pinned image> <cmd>`                    |
 | 5    | The host                       | Tiers 1–4 are all impossible (e.g. Docker is not available)         | `<cmd>`, after the checks in tier 5                         |
 
-No tier ends in "stop": every branch has a way to carry on. Whenever tiers 2–5 were needed, suggest adding a
-proper task for the command in the result.
+No tier ends in "stop": every branch has a way to carry on (the `autonomous-execution` convention of the `code`
+plugin). Whenever tiers 2–5 were needed, suggest adding a proper task for the command in the result.
 
 `docker` and `docker compose` are only run through tiers 3 and 4, with the flags described there. Commands only
 run on the host under the tier 5 rules.
@@ -78,10 +78,10 @@ Export `FIXUID`/`FIXGID` (as above) when the Compose files reference them.
 #### No Taskfile and no Compose setup: offer a scaffold
 
 Before falling through to tiers 4–5, offer to scaffold a Taskfile and a Compose file — but only ask when someone
-can answer: an interactive session with a question tool available, and not a headless (`claude -p`), CI (`CI`,
-`GITHUB_ACTIONS`), scheduled or background run. If that can't be determined, treat the run as autonomous. Without
-an answer, or when the user declines, don't scaffold: continue with tier 4 and include the scaffold suggestion in
-the result. Only write the scaffold after the user agreed to it.
+can answer (see the `autonomous-execution` skill of the `code` plugin): an interactive session with a question tool
+available, and not a headless (`claude -p`), CI, scheduled or background run. Without an answer, or when the user
+declines, don't scaffold: continue with tier 4 and include the scaffold suggestion in the result. Only write the
+scaffold after the user agreed to it.
 
 The scaffold is a Taskfile with tasks for the common commands (composer, the Node package manager, php), each
 running through Docker, and a Compose file with the services those tasks need. Use the `dc` / `dc:run:*` tasks

@@ -161,7 +161,7 @@ task composer:script:fixstyle            # phpcbf -n — auto-fixes, run this fi
 
 # Static analysis — PHPStan (Larastan in Laravel projects)
 task composer:script:checktype
-task composer:script:update-type-baseline    # only when the user explicitly agrees to baseline it
+task composer:script:update-type-baseline    # never on your own — only when the user explicitly asks for it
 
 # Tests — PHPUnit (not Pest)
 task composer:script:test
@@ -211,6 +211,10 @@ task e2e:test            # Playwright UI on the host
 ---
 
 ## Step 3: Hand back
+
+Never get a tool green by weakening it: no baseline updates, no `@phpstan-ignore` / `@psalm-suppress`,
+no skipped tests. When a failure can't be fixed, report the remaining errors instead (see the
+`autonomous-execution` skill of the `code` plugin).
 
 Report per tool the command that actually ran (not the Specs task name, when another one ran) and its
 result, so `ci-green-check` can drive the fix loop and

@@ -16,9 +16,16 @@ Invoke the `executing-commands` skill before running any project command. It dec
 project: a `task` target first, then the containers, and the host only as a last resort. Never run composer, the
 Node package manager, node, or php directly on the host while a container route exists.
 
-Each phase specifies its own error-handling policy. Some phases allow attempting a fix before
-aborting — follow the per-phase instructions rather than a blanket stop rule. A phase that does not apply to the
-project (according to Phase 0) is skipped, not failed.
+A phase that does not apply to the project (according to Phase 0) is skipped, not failed.
+
+## Failure handling
+
+This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. Some phases describe a
+fix to attempt first. When a phase still fails, **isolate it**: don't commit its changes (restore the files it
+touched), continue with the next phase, and list it — with the error — in the PR body's
+`## Decisions and skipped steps` section. Never get a phase green by weakening the checks (no baselines, no
+`@phpstan-ignore` / `@psalm-suppress`, no skipped tests); skip the phase instead. A situation this command doesn't
+describe is handled the same way, plus a skill-gap issue.
 
 ## Commit Strategy
 
@@ -62,7 +69,7 @@ reference below), or that there is none.
 `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` when the symbolic ref is not set. Every phase
 below refers to it as `<default>`; never assume `main`.
 
-Summarize the findings to the user before continuing.
+Summarize the findings in the output and continue; don't wait for a reply.
 
 ### Command reference
 
@@ -91,37 +98,38 @@ namespace, run the `<pm>` command through `executing-commands` instead.
 
 ## Phase 1 --- Repository Safety Checks
 
-1. Ensure the working (git) tree is clean:
-    - No staged changes
-    - No unstaged changes
-    - No untracked files
-    - If not clean: Abort immediately
-        - Inform the user to commit or stash changes
-2. Synchronize with remote: `git fetch --prune`
-3. Check if `vendor-updates` already exists on the remote. If it does, abort and inform the user
-to delete the remote branch before continuing.
-4. Check if local `<default>` branch is up to date with `origin/<default>`:
-    - If behind → abort and inform the user to pull the latest changes.
-    - If ahead with unique commits → abort and inform the user to push or rebase their commits.
-    - If diverged → This can occur when testing locally (e.g., running the project checks) — the local branch may
-    have commits not yet pushed to the remote. Ask the user which branch to use as the source for the vendor-updates
-    branch in step 5: `origin/<default>` or local `<default>`. **Choosing local `<default>` allows you to test
-    iterations without pushing to the remote.**  
-    **Warning:** choosing the local `<default>` branch may lead to merge conflicts later if the remote branch has
-    commits the local branch doesn't know about (common when you don't push test iterations).
-5. Prepare branch `vendor-updates`:
-    - If branch does not exist → create from the chosen branch in step 4 (`origin/<default>` by default, or local
-    `<default>` if the user selected it in a diverged state)
-    - If branch exists:
-        - If fully merged into `<default>` → delete locally and recreate from the chosen branch.
-        - If behind on `<default>` and has NO unique commits → reset `vendor-updates` to the chosen branch.
-        - If it contains unique commits → abort and notify user.
-6. If the `composer.json` file contains a repositories section with private repositories (like Filament), make sure
-Composer has credentials for them: an `auth.json` file in the project root, or Composer's global auth
-(`COMPOSER_AUTH`, `~/.composer/auth.json`) when the project runs Composer on the host. If there are none, abort and
-inform the user to create them. When the Taskfile has a `setup:auth` task, suggest running `task setup:auth`.
+Never touch the user's own work: uncommitted changes, local `<default>` and branches with unique commits stay as
+they are. Record every choice made here in the PR body.
 
-Always branch from the chosen source (see step 4).
+1. Synchronize with remote: `git fetch --prune`
+2. Choose the source branch: **`origin/<default>`**. Compare local `<default>` with it:
+    - Up to date, or behind: use `origin/<default>`. Local `<default>` is left as it is.
+    - Ahead or diverged: this happens when testing locally — local `<default>` has commits not yet pushed. Use
+    `origin/<default>` and record that the local commits are not included. Only when someone can answer (see
+    `autonomous-execution`), offer local `<default>` as the alternative, with `origin/<default>` as the
+    recommended option. **Choosing local `<default>` allows you to test iterations without pushing to the
+    remote**, but may lead to merge conflicts later if the remote branch has commits the local branch doesn't know
+    about.
+3. Choose the branch name: `vendor-updates`, unless that name is taken by work you must not touch:
+    - On the remote: reuse `vendor-updates` only when it has no commits that aren't in the source branch (then the
+    new branch fast-forwards it). Otherwise use `vendor-updates-<YYYY-MM-DD>` (add `-2`, `-3`, … when that exists
+    too).
+    - Locally: when fully merged into `<default>`, or without unique commits, delete and recreate it from the source
+    branch. When it contains unique commits, leave it untouched and use the suffixed name.
+4. Prepare the branch from the source branch:
+    - **Clean working tree** (no staged, unstaged or untracked changes): create or reset the branch from step 3 and
+    check it out.
+    - **Dirty working tree:** leave the changes untouched and run the whole update in a fresh worktree instead:
+    `git worktree add -b <branch> <path> <source>` (e.g. a sibling directory `../<repo>-vendor-updates`). Run
+    every later phase in that worktree, and remove it (`git worktree remove <path>`) once the branch is pushed.
+5. If the `composer.json` file contains a repositories section with private repositories (like Filament), make sure
+Composer has credentials for them: an `auth.json` file in the project root, or Composer's global auth
+(`COMPOSER_AUTH`, `~/.composer/auth.json`) when the project runs Composer on the host. If there are none, use
+`COMPOSER_AUTH` when it is set in the environment (pass it through by name, never print it). Otherwise skip the
+Composer phases (3, 4 and the Composer audit in Phase 10), continue with the others, and report the missing
+credentials — suggesting `task setup:auth`, or the project's equivalent, to create the `auth.json`.
+
+Always branch from the chosen source (see step 2).
 
 ## Phase 2 --- Environment Preparation
 
@@ -137,7 +145,9 @@ task targets are available) before running any commands.
     - Otherwise install from the lock files through `executing-commands`: `composer install`, plus `<pm>`'s frozen
     install when there is a `package.json` (e.g. `npm ci`, `pnpm install --frozen-lockfile`).
 
-Abort if any command fails.
+When a step fails, try the next route `executing-commands` offers for it (e.g. Docker Compose when the task fails
+for a reason outside the project). When the environment still can't be prepared, skip the phases that run the
+project checks (3, 4 and 7), continue with the others, and record why.
 
 ## Phase 3 --- Backend Dependencies
 
@@ -146,15 +156,21 @@ Abort if any command fails.
 2. Run the project checks. Invoke the `php-checks` skill to find them: the Taskfile (`task checkall` in Specs
 projects), the composer scripts (`composer run-script --list`) and the CI workflows (via `ci-green-check`'s
 discovery). If any check fails, attempt to fix the issue, then re-run the checks to confirm resolution before
-proceeding. If you cannot fix the issues, abort and report the errors.
+proceeding. If you cannot fix the issues, hold back the culprit (see below).
     - If there are any style issues, run the project's style fixer (e.g. `task composer:script:fixstyle`, phpcbf,
     `php-cs-fixer fix` or `pint`) to automatically fix them. If that does not work, try to fix style issues
-    manually. Re-run the checks after each attempt. If you cannot fix the style issues, abort and report the errors.
+    manually. Re-run the checks after each attempt.
     - If there are any static analysis issues (PHPStan, Larastan, Psalm), try to fix them. Do not fix them by adding
     them to a baseline file or by adding annotations like `@phpstan-ignore` or `@psalm-suppress`. Re-run the checks
-    after each fix attempt. If you cannot fix the static analysis issues, abort and report the errors.
+    after each fix attempt.
     - If there are any test failures (PHPUnit, Pest), try to fix them. Do not fix test failures by skipping tests.
-    Re-run the checks after each fix attempt. If you cannot fix the test failures, abort and report the errors.
+    Re-run the checks after each fix attempt.
+    - **Hold back the culprit** when the failures can't be fixed: find the package whose update causes them
+    (e.g. restore `composer.lock` and update in groups, re-running the failing check). Then update everything
+    else and keep the culprit at its locked version with a temporary constraint:
+    `composer update --with-all-dependencies --with <vendor/package>:<locked-version>`. Commit what passes, and
+    list each held-back package with the errors it caused in the PR body. When no culprit can be isolated, isolate
+    the phase instead (see [Failure handling](#failure-handling)).
 3. **Libraries without a committed `composer.lock`:** the update produces nothing to commit. The checks in step 2
 still run, so the test suite runs against the updated dependencies. Also check whether the `composer.json`
 constraints still allow the latest major versions (`composer outdated --direct --major-only`, or
@@ -196,15 +212,15 @@ replacement's available versions require it.
 Search the codebase for references to the old package's namespace/classes and update any usages to the
 replacement's API. Then run the project checks (as in Phase 3). If any check fails, attempt to fix
 the issue and re-run the checks to confirm resolution before proceeding (follow the same
-style/static analysis/test fix rules described in Phase 3). If you cannot resolve the failures, abort and
-report the errors.
+style/static analysis/test fix rules described in Phase 3). If you cannot resolve the failures, leave that
+package on `ilyes512/*`, migrate the others, and report why.
 6. Check `git status` for all changed files. Stage only files directly related to this migration (e.g.
 `composer.json`, `composer.lock`, `vendor/`, and any source files updated for the new package's API)
 and commit. Commit message: `chore(deps): Replaced abandoned ilyes512 packages with specsnl equivalents`.
 For any remaining unrelated changed files, commit them separately with a descriptive message.
 7. If there are no `ilyes512/*` packages or no changes, skip the commit step and move on to the next phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 5 --- Node package manager version
 
@@ -218,7 +234,7 @@ Skip this phase when the project has no `package.json`.
 `chore(deps): Updated pnpm version`).
 3. If there are no changes, skip the commit step and move on to the next phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 6 --- Frontend Dependencies
 
@@ -236,7 +252,7 @@ manager (e.g. a `package-lock.json` next to `pnpm-lock.yaml`) means the wrong ma
 committing it.
 4. If there are no changes, skip the commit step and move on to the next phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 7 --- Docker Image Updates
 
@@ -267,8 +283,8 @@ Abort on any failure.
           (use `/repositories/<namespace>/<image>/tags?...` for non-official images). Pick the latest
           stable tag that matches the current flavour (e.g. `8.0-bookworm`).
         - For `ghcr.io` images: try the GitHub Releases API as the fallback.
-        - If you still cannot find a version **equal to or newer** than the current one, inform the user
-          about this discrepancy and skip updating that image.
+        - If you still cannot find a version **equal to or newer** than the current one, record this
+          discrepancy in the report and skip updating that image.
 3. Update any outdated image references in-place across all scanned files.
 4. After updating, rebuild the local Docker images: `task build` when the Taskfile has a `build` task, otherwise the
 Compose equivalent (`docker compose build --pull`) through `executing-commands`. Skip this step when the project has
@@ -284,7 +300,7 @@ Commit message:
 with a descriptive message.
 8. If there are no changes, skip the commit step and move on to the next phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 8 --- GitHub Actions Updates
 
@@ -298,8 +314,8 @@ current. A newer major version may exist.
     the current version, use the following concrete fallback:
         - Query the Tags API: `GET https://api.github.com/repos/<owner>/<repo>/tags`. Use the highest
           tag that matches the versioning scheme in use (e.g. `v4`, `v4.2.1`).
-        - If you still cannot find a version **equal to or newer** than the current one, inform the user
-          about this discrepancy and skip updating that action.
+        - If you still cannot find a version **equal to or newer** than the current one, record this
+          discrepancy in the report and skip updating that action.
 3. Update any outdated action versions in-place across all scanned files.
 4. Check `git status` for all changed files. Stage only files directly related to GitHub Actions updates (e.g.,
 `.github/workflows/*.yml`, `.github/actions/**/*.yml`) and commit. Commit message:
@@ -334,7 +350,7 @@ expression (e.g. `runs-on: ${{ matrix.os }}`).
 commit. Commit message: `chore(ci): Updated GitHub Actions runner images`.
 10. If there are no changes, skip the commit step and move on to the next phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 9 --- Dependabot Coverage
 
@@ -371,7 +387,7 @@ no `docker-compose` entry is missing coverage for its Compose images.
 6. If there is no Dependabot config or everything is already covered, skip the commit step and move on to the next
 phase.
 
-Abort on any failure.
+On failure, isolate this phase (see [Failure handling](#failure-handling)).
 
 ## Phase 10 --- Final Checks
 
@@ -393,9 +409,10 @@ summary and suggest to the user to update those as well.
 
 ## Final State
 
-Abort if there are no changes after all update steps, and inform the user that dependencies are already up to date.
-For a library without a committed `composer.lock`, also report the results of the Phase 3 test run and the major
-version suggestions.
+When there are no changes after all update steps, the run ends here with a report instead of a PR: dependencies
+are already up to date. The report also lists the skipped phases and decisions, and, for a library without a
+committed `composer.lock`, the results of the Phase 3 test run and the major version suggestions. Delete the empty
+branch (and the worktree, when one was created) — it has no commits of its own.
 
 - There could be up to 8 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
 committed separately per the Commit Strategy):
@@ -407,8 +424,8 @@ committed separately per the Commit Strategy):
     6. GitHub Actions version updates
     7. GitHub Actions runner image updates
     8. Dependabot configuration updates
-- Branch: `vendor-updates`
-- Based on the chosen source from Phase 1 step 4 (latest `origin/<default>` by default, or local `<default>` if
+- Branch: `vendor-updates`, or the suffixed name chosen in Phase 1 step 3.
+- Based on the chosen source from Phase 1 step 2 (latest `origin/<default>` by default, or local `<default>` if
 selected).
 - The working tree should be clean.
 - **This skill explicitly authorizes invoking the `create-pr` skill to push the `vendor-updates`
@@ -449,9 +466,15 @@ selected).
   - Updated GitHub Actions runner images
   - Added missing resources to the Dependabot configuration
 
+  ## Decisions and skipped steps
+  - Skipped Phase 6 (frontend dependencies): `pnpm run build` failed with <error>
+  - Held back `vendor/package` at 1.2.3: the update breaks <check>
+
   ## Test plan
   - [ ] Review the dependency changelog(s) for any breaking changes or notable updates.
   - [ ] Verify the CI workflows pass on the updated runner images.
   ```
 
-  Only include the runner images test plan item when the runner images were updated.
+  Only include the runner images test plan item when the runner images were updated. Only include the
+  `## Decisions and skipped steps` section when there is something to list: every skipped or isolated phase,
+  held-back package, chosen source or branch name other than the defaults, and skill-gap issue filed.
