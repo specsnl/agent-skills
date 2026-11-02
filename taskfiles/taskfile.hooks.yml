@@ -2,9 +2,10 @@
 version: "3"
 
 vars:
-  # Resolves to the shared hooks directory, also from inside a worktree (where .git is a file).
+  # Resolves to the shared hooks directory, also from inside a worktree (where .git is a file). Not --git-path
+  # hooks: that follows a global core.hooksPath, and the copy would overwrite the global hooks.
   HOOKS_DIR:
-    sh: git rev-parse --git-path hooks
+    sh: echo "$(git rev-parse --path-format=absolute --git-common-dir)/hooks"
 
 tasks:
   install:
