@@ -118,13 +118,14 @@ On failure, isolate only the failing item and continue with the next one (see th
 
 ### Moving Node.js to a new major
 
-The `builder_nodejs` stage doesn't install Node.js: it copies `/usr/local/bin/node` and `/usr/local/lib/node_modules`
-from the `node` image, and links `corepack/dist/corepack.js` from it to install npm, Yarn and pnpm. A new major can
-drop something the stage relies on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving to a new
-major:
+The images don't install Node.js themselves: the stage that provides it (`COPY --from=node ...` in
+`Dockerfile.tmpl`) copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image, and links
+`corepack/dist/corepack.js` from it to install npm, Yarn and pnpm. A new major can drop something that stage relies
+on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving to a new major:
 
-1. Check that the new image still provides every path the `builder_nodejs` stage of `Dockerfile.tmpl` copies or
-   links: `docker run --rm node:<new-tag> ls /usr/local/lib/node_modules` must list `npm` and `corepack`.
+1. Check that the new image still provides every path that stage copies or links, as written in the current
+   `Dockerfile.tmpl` — e.g. `docker run --rm node:<new-tag> ls /usr/local/lib/node_modules` must list `npm` and
+   `corepack` as long as the template links corepack from there.
 2. When it does, update to the new major as usual.
 3. When it doesn't, the stage needs a structural change (e.g. installing corepack with
    `npm install --global corepack@<version>`), which doesn't belong in a dependency update. Don't change the major:
@@ -257,15 +258,19 @@ Verify the branch as a whole before pushing it:
 
 1. Run `task generate` (or its fallback): the working tree must stay clean.
 2. Run `task lint` (Hadolint on every Dockerfile).
-3. When Docker is available, build the `builder_nodejs` target of every variant — it contains every stage, so it
-   proves the base image, the extension downloads, Composer and Node.js all work:
-   `docker build --target builder_nodejs --file <variant>/Dockerfile .`
+3. When Docker is available, build the **final target** of every variant: the last `FROM ... AS <target>` in the
+   Dockerfile, which builds on all the other stages, so it proves the base image, the extension downloads,
+   Composer and Node.js all work. Don't hardcode a target name — the set of targets can change. Without
+   `--target`, Docker builds the last stage:
+   `docker build --tag <variant>-verify --file <variant>/Dockerfile .`
    Check that PHP reports the expected version and that the updated extensions are loaded
-   (`docker run --rm <image> php -v`, `php -m`).
+   (`docker run --rm <variant>-verify php -v`, `php -m`). When the last stage doesn't build on every other stage
+   (check its `FROM`), also build each target that no other stage builds on.
 4. When a step fails, find the commit that causes it (rebuild without that update) and isolate that update: drop
    its commit from the branch (`git rebase --onto <sha>^ <sha>`; these are this run's own unpushed commits) — or,
    when the branch was already pushed (a reused `updates` branch), `git revert` it instead of rewriting history.
-   Record it with the error and repeat the verification. When Docker isn't available, skip the build, record that, and rely on the pull request's CI builds.
+   Record it with the error and repeat the verification. When Docker isn't available, skip the build, record that,
+   and rely on the pull request's CI builds.
 
 ------------------------------------------------------------------------
 
@@ -311,12 +316,12 @@ Updated the following dependencies:
 
 Already up to date: igbinary, amqp, Xdebug, pcov, fixuid, Hadolint, Gomplate, GitHub Actions, LICENSE year.
 
-Verified: `task generate` and `task lint` pass, and the `builder_nodejs` target of every variant builds.
+Verified: `task generate` and `task lint` pass, and the final target of every variant builds.
 
 ## Decisions and skipped steps
 
 - event 3.2.0 is on Packagist but not on PECL yet: kept at 3.1.6.
-- Node.js 26 (Active LTS) images no longer bundle corepack, which the `builder_nodejs` stage needs: kept on
+- Node.js 26 (Active LTS) images no longer bundle corepack, which the Node.js stage needs: kept on
   Node.js 24 and updated to its latest release. Moving to 26 needs corepack installed separately.
 ```
 
