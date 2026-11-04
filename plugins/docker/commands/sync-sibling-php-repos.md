@@ -12,9 +12,10 @@ Propagate relevant changes from the current PHP image repository to all sibling 
 its own branch, commit history, and pull request that mirrors the original — adjusted where necessary for PHP version
 differences.
 
-This command is run from a PHP image repository on a feature branch, usually one that has a pull request. If you
-are in the `php85` repository with updates on a branch, run this command to propagate the applicable changes to
-`php84` and `php83`.
+This command is run from a PHP image repository on a feature branch, usually one that has a pull request. The
+siblings are **all other** PHP image repositories in the `specsnl` organisation, including end-of-life versions. For
+example, if you are in the `php85` repository with updates on a branch and the organisation contains `php85`,
+`php84`, `php83` and `php74`, run this command to propagate the applicable changes to `php84`, `php83` and `php74`.
 
 This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. A failure in one sibling
 skips only that sibling (or that commit): continue with the others and record it in the Final State summary. A
@@ -39,9 +40,10 @@ situation this command doesn't describe is handled the same way, plus a skill-ga
    For each commit, also retrieve its full diff: `git show <sha>`.
 3. Record the **title** of the pull request found in Phase 1 (or the derived title) — this will be reused verbatim
    when creating sibling PRs.
-4. Locate the sibling repositories using the PHP images skill. Check locally first (sibling directories alongside
-   the current repository). Confirm each sibling by verifying its git remote URL or README. Record the local path
-   of every sibling that exists.
+4. Locate the sibling repositories using the PHP images skill: list every `php<NN>` repository in the `specsnl`
+   organisation (see "Maintained PHP versions") and exclude the current one. Check locally first (sibling
+   directories alongside the current repository) and confirm each one by verifying its git remote URL or README.
+   Clone a sibling that only exists on GitHub next to the others. Record the local path of every sibling.
 5. For every located sibling, check whether its working tree is clean (no staged changes, no unstaged changes, no
    untracked files). A dirty sibling is left untouched: work in a fresh worktree of that sibling instead (see
    Phase 4). When that isn't possible either, skip only that sibling and list it, with what it has outstanding, in

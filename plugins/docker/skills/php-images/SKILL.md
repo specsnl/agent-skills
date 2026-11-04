@@ -29,16 +29,32 @@ configuration files and scripts.
 - `files/general`: Contains files that are shared across all PHP Dockerfiles.
 - `files/<variant_name>`: Contains files specific to the `<variant_name>` variant of the image.
 
-## Supported PHP versions
+Not every repository ships every variant: a variant is only present when that PHP version supports it (e.g.
+FrankenPHP requires PHP 8.2+, so `php74` has no `frankenphp` variant). Check which `<variant>/Dockerfile` files a
+repository actually contains instead of assuming all three.
 
-Specsnl maintains images for 3 supported PHP versions at any given time. To determine the current supported versions,
-fetch the endoflife.date API: `https://endoflife.date/api/v1/products/php/`. This returns a JSON array of PHP releases
-with their active-support and security-support end dates. Use the 3 most recent versions that have not yet reached
-end-of-life as the supported set.
+## Maintained PHP versions
 
-If a Specsnl repository for the newest PHP version does not exist yet, we are still supporting the previous version as
-the latest one. For example, if PHP 8.5 is the newest version but the `php85` repository has not been created yet, we
-are still treating PHP 8.4 as the latest.
+Specsnl maintains an image for **every** PHP image repository in the `specsnl` GitHub organisation, not just the
+most recent PHP versions. End-of-life PHP versions (e.g. PHP 7.4) are still maintained as long as their repository
+exists. Do not use endoflife.date or any "last N versions" rule to decide which versions are in scope.
+
+A PHP image repository is named `php<major><minor>`: `php` followed by exactly two digits, e.g. `php85`, `php84`,
+`php83`, `php80` or `php74`. To list the current set, query the organisation and keep the non-archived repositories
+whose name matches `^php[0-9]{2}$`:
+
+```bash
+gh repo list specsnl --limit 1000 --no-archived --json name \
+    --jq '[.[].name | select(test("^php[0-9]{2}$"))] | sort | reverse | .[]'
+```
+
+When the `gh` CLI is unavailable, use a GitHub MCP repository search (`org:specsnl php in:name`) and apply the same
+name filter. When neither works, fall back to the local sibling directories (see below) and record that the set may
+be incomplete.
+
+The newest version is the repository with the highest number. If PHP has released a newer version but its Specsnl
+repository has not been created yet, that version is not maintained yet: the highest existing repository is the
+latest.
 
 ## Where can I find the source files on GitHub?
 
@@ -96,13 +112,19 @@ scheme: `ghcr.io/ilyes512/php85:builder-latest` becomes `ghcr.io/specsnl/php85/b
 
 ## How to find sibling images on GitHub
 
-The sibling repositories follow the same URL pattern described above. For example, if you are looking at the `php85`
-repository, the siblings are at `https://github.com/specsnl/php84` and `https://github.com/specsnl/php83`.
+The siblings of a PHP image repository are **all other** PHP image repositories in the organisation (see
+[Maintained PHP versions](#maintained-php-versions)), and they follow the same URL pattern described above. For
+example, if you are looking at the `php85` repository and the organisation contains `php85`, `php84`, `php83` and
+`php74`, the siblings are `https://github.com/specsnl/php84`, `https://github.com/specsnl/php83` and
+`https://github.com/specsnl/php74`.
 
 ## How to find sibling images locally
 
 If you are working locally in one of the PHP image repositories and want to find the sibling images for other PHP
-versions, check if there are sibling directories in the same parent directory. For example, if you are in the `php85`
-repository, check if `php84` and `php83` directories exist alongside it. If they do, they are most likely the sibling
-images for PHP 8.4 and PHP 8.3 respectively. Verify by checking the remote repository URLs in the git configuration
-or by reading the README files in those directories.
+versions, look for directories named `php<two digits>` in the same parent directory. For example, if you are in the
+`php85` repository, check whether `php84`, `php83`, `php74` and any other `php<NN>` directories exist alongside it.
+Verify each one by checking its git remote URL (it must point to `specsnl/php<NN>`) or by reading its README.
+
+Compare the local directories with the organisation's list of repositories: a sibling that exists on GitHub but not
+locally can be cloned next to the others (`gh repo clone specsnl/php<NN> ../php<NN>`). A local `php<NN>` directory
+without a matching repository in the organisation is not a sibling.
