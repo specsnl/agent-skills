@@ -99,6 +99,8 @@ The repositories are kept as similar as possible, but each PHP version may diffe
 - **Variants**: older PHP versions lack variants they don't support (see above).
 - **Node.js target**: a repository either has a standalone `builder_nodejs` target or has Node.js inside `builder`
   (see [Where Node.js lives](#where-nodejs-lives)), and siblings may differ while that change is rolled out.
+- **corepack**: a repository either links the corepack bundled with the `node` image (Node.js 24 and older) or
+  installs it from npm, pinned by `ARG COREPACK_VERSION` (see [Where corepack comes from](#where-corepack-comes-from)).
 - **Debian release**: the base images use the newest Debian release available for that PHP version (e.g. `trixie`
   for PHP 8.3+, `bullseye` for PHP 7.4). Keep the Debian release of an existing tag when updating it.
 - **Version-specific workarounds**: e.g. `php74` pins `ARG DEBIAN_SECURITY_SNAPSHOT` because Debian bullseye is
@@ -198,6 +200,34 @@ Use `<...>/builder_nodejs:<version>` when that version has the standalone target
 `<...>/node:<version>`) whose version has no standalone target, point it at `<...>/builder:<version>` instead. Don't
 rely on an existence check alone here: an old `builder_nodejs:latest` image stays in the registry after the target is
 removed, but no longer receives updates.
+
+### Where corepack comes from
+
+The Node.js stage copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image, and uses
+corepack to install npm, Yarn and pnpm. Where corepack comes from differs per repository and per release:
+
+- **Bundled**: the stage links the copy shipped with the `node` image
+  (`ln -s ../lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack`). This only works up to Node.js 24:
+  the Node.js 25+ images no longer bundle corepack.
+- **Installed from npm**: the stage installs corepack with the npm copied from the `node` image, pinned by
+  `ARG COREPACK_VERSION` (with a `# Latest version of corepack: https://www.npmjs.com/package/corepack` comment):
+
+    ```dockerfile
+    RUN node /usr/local/lib/node_modules/npm/bin/npm-cli.js install --global \
+            --cache /tmp/npm-cache --no-update-notifier --no-audit --no-fund \
+            "corepack@$COREPACK_VERSION" \
+        && corepack install --global npm@12.x yarn@4.x pnpm@12.x \
+        ...
+    ```
+
+    npm is called through `npm-cli.js` because the `node` image's bin links aren't copied, and its cache goes to
+    `/tmp` so no root-owned files end up in `npm_config_cache`. It works with every Node.js version the pinned
+    corepack release supports (its `engines.node`), and is required from Node.js 25 on. Dependabot can't track `COREPACK_VERSION`, so it is only bumped by hand (by the
+    `update-php-images` command), like the extension and tool `ARG`s.
+
+A repository installs corepack from npm when `Dockerfile.tmpl` contains `ARG COREPACK_VERSION`; otherwise it links
+the bundled copy. Siblings may differ while the change is rolled out (it was introduced in
+[specsnl/php85#97](https://github.com/specsnl/php85/pull/97), together with Node.js 26).
 
 ### Legacy naming scheme (older)
 
