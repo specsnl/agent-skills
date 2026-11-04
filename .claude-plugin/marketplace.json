@@ -17,13 +17,13 @@
         {
             "name": "php",
             "source": "./plugins/php",
-            "version": "0.0.3",
+            "version": "0.0.4",
             "description": "A PHP-specific plugin for Specs"
         },
         {
             "name": "docker",
             "source": "./plugins/docker",
-            "version": "0.0.10",
+            "version": "0.0.11",
             "description": "A Specs Docker specific plugin"
         },
         {

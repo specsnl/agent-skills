@@ -103,8 +103,10 @@ When the project has no Compose setup (and no scaffold was added):
   CI workflows (e.g. a `php:8.3-cli` or `composer:2` job image) and docs. Fall back to the Specsnl images only
   when the project has none (see [Picking the PHP image](#picking-the-php-image)):
   - PHP / Composer / PHP tools: `ghcr.io/specsnl/php<xy>/builder:<version>`
-  - Node / the Node package manager: `ghcr.io/specsnl/php<xy>/builder_nodejs:<version>` — it has corepack, so
-    pnpm and yarn follow the `packageManager` field (see [Node package manager](#node-package-manager)).
+  - Node / the Node package manager: `ghcr.io/specsnl/php<xy>/builder_nodejs:<version>` when that version still has
+    a standalone Node.js target, otherwise `ghcr.io/specsnl/php<xy>/builder:<version>`, which then contains Node.js
+    (see "Where Node.js lives" in the `php-images` skill of the `docker` plugin). Both have corepack, so pnpm and
+    yarn follow the `packageManager` field (see [Node package manager](#node-package-manager)).
 - **Pull on demand:** `docker pull` a missing image without asking first, and mention which image and tag you
   pulled.
 - **Always pin a specific version, never `latest`.** For Specsnl images, use the latest release tag of
@@ -172,7 +174,7 @@ command — never assume npm. Skills and commands that write `<pm>` refer to thi
 ### Detection
 
 1. **`packageManager` in `package.json`** (`pnpm@10.x`, `yarn@4.x`, `npm@11.x`). This is authoritative, and
-   corepack enforces it in the Specsnl `builder_nodejs` image.
+   corepack enforces it in the Specsnl image that contains Node.js.
 2. **The lockfile:**
     - `pnpm-lock.yaml` → pnpm
     - `yarn.lock` → yarn: berry (v2+) when there is a `.yarnrc.yml` or `__metadata` in `yarn.lock`, otherwise
