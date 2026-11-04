@@ -119,7 +119,8 @@ On failure, isolate only the failing item and continue with the next one (see th
 ### Moving Node.js to a new major
 
 The images don't install Node.js themselves: the stage that provides it (`COPY --from=node ...` in
-`Dockerfile.tmpl`) copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image, and links
+`Dockerfile.tmpl`; the standalone Node.js target, or `builder` when Node.js lives inside it — see "Where Node.js
+lives" in the PHP images skill) copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image, and links
 `corepack/dist/corepack.js` from it to install npm, Yarn and pnpm. A new major can drop something that stage relies
 on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving to a new major:
 

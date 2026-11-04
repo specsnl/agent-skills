@@ -64,6 +64,11 @@ For every commit identified in Phase 2, decide whether it applies to each siblin
 - **Applies partially**: the change touches a variant the sibling doesn't have (e.g. `frankenphp` in `php74`):
   apply only the parts for the variants it does have, and drop the rest (including `{{ if .is_frankenphp }}` blocks
   and `files/frankenphp` changes when the sibling has no FrankenPHP variant).
+- **Node.js lives in another stage**: the source and the sibling differ in where Node.js lives (a standalone
+  `builder_nodejs` target in one, inside `builder` in the other; see "Where Node.js lives" in the PHP images skill).
+  Port a change to the Node.js setup into the stage that holds Node.js in the sibling. A commit that moves Node.js
+  into `builder` (removing the standalone target) is ported as a whole, including the Taskfile, workflow and
+  ruleset changes that come with it; when it is already done in the sibling, skip it as "already applied".
 - **Does not apply**: the change is specific to the source PHP version and cannot or should not be ported (e.g., a
   new dependency that only supports PHP 8.5, or an extension version that dropped support for the sibling's PHP
   version). For a version bump, check whether a newer version that does support the sibling's PHP version exists

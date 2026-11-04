@@ -97,6 +97,8 @@ it with `--no-verify`: resolve the tool as above, or skip that change and record
 The repositories are kept as similar as possible, but each PHP version may differ where it has to:
 
 - **Variants**: older PHP versions lack variants they don't support (see above).
+- **Node.js target**: a repository either has a standalone `builder_nodejs` target or has Node.js inside `builder`
+  (see [Where Node.js lives](#where-nodejs-lives)), and siblings may differ while that change is rolled out.
 - **Debian release**: the base images use the newest Debian release available for that PHP version (e.g. `trixie`
   for PHP 8.3+, `bullseye` for PHP 7.4). Keep the Debian release of an existing tag when updating it.
 - **Version-specific workarounds**: e.g. `php74` pins `ARG DEBIAN_SECURITY_SNAPSHOT` because Debian bullseye is
@@ -155,7 +157,8 @@ version:
 
 - `<variant>`: omitted for the FPM variant; otherwise `apache` or `frankenphp`.
 - `<target>`: omitted for the `runtime` (production) target; otherwise `builder` (adds development tooling
-  such as Composer and Xdebug) or `builder_nodejs` (builder plus Node.js).
+  such as Composer and Xdebug) or, when the release has one, `builder_nodejs` (builder plus Node.js). See
+  [Where Node.js lives](#where-nodejs-lives).
 - `<version>`: `latest`, a release tag (e.g. `0.5.5`), `main`, or `pr-<number>`.
 
 Examples for PHP 8.5:
@@ -169,6 +172,32 @@ docker pull ghcr.io/specsnl/php85/apache/builder:latest       # apache builder
 docker pull ghcr.io/specsnl/php85/frankenphp:latest           # frankenphp runtime
 docker pull ghcr.io/specsnl/php85/frankenphp/builder:latest   # frankenphp builder
 ```
+
+### Where Node.js lives
+
+Node.js (with corepack, so npm, Yarn and pnpm) is either in a **standalone Node.js target**, `builder_nodejs`
+(published as `<...>/builder_nodejs`, by some repositories also as `<...>/node`), or **inside the `builder` target**
+itself. Which one applies differs per repository and per release, so never assume `builder_nodejs` exists:
+
+- **In an image repository:** the Dockerfile has a standalone Node.js target when it contains a
+  `FROM ... AS builder_nodejs` stage. Without one, the stage that copies from the `node` image
+  (`COPY --from=node ...`) is `builder`, and `builder` is the image to use for Node.js.
+- **For a published version** (e.g. when picking an image for a project): check the Dockerfile of that release —
+  the repositories are public, so no authentication is needed:
+
+    ```bash
+    dockerfile="$(curl -fsSL "https://raw.githubusercontent.com/specsnl/php<NN>/<tag>/fpm/Dockerfile")" \
+        && { grep -q ' AS builder_nodejs$' <<< "$dockerfile" && echo standalone || echo builder; }
+    ```
+
+    Use the release tag for a release version, and `main` for `latest` and `main`. When it prints nothing, the
+    Dockerfile couldn't be fetched (e.g. the tag doesn't exist): leave the reference unchanged and record it.
+
+Use `<...>/builder_nodejs:<version>` when that version has the standalone target, otherwise
+`<...>/builder:<version>`. When migrating a reference to `<...>/builder_nodejs:<version>` (or the legacy
+`<...>/node:<version>`) whose version has no standalone target, point it at `<...>/builder:<version>` instead. Don't
+rely on an existence check alone here: an old `builder_nodejs:latest` image stays in the registry after the target is
+removed, but no longer receives updates.
 
 ### Legacy naming scheme (older)
 
