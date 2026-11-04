@@ -21,10 +21,15 @@ Perform a full dependency update of one Specsnl PHP image repository (any `php<N
 - Only pick versions that support **this repository's PHP version**. Never move the PHP base image to another
   minor or major PHP version, and never change the Debian release of an existing tag (e.g. `trixie`, `bullseye`).
 
-This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. When a phase fails,
-**isolate it**: don't commit its changes (restore the Dockerfiles it touched), continue with the next phase, and list
-it — with the error — in the PR body's `## Decisions and skipped steps` section. A situation this command doesn't
-describe is handled the same way, plus a skill-gap issue.
+This command never dead-ends: follow the `autonomous-execution` skill of the `code` plugin. When an update fails,
+**isolate it**: don't commit its changes (restore the files it touched), continue with the next one, and list it —
+with the error — in the PR body's `## Decisions and skipped steps` section. Isolate the smallest unit that failed:
+in a phase with one commit per item (Phases 3--6), only that item; the items already committed stay. A situation
+this command doesn't describe is handled the same way, plus a skill-gap issue.
+
+When a version source can't be reached (rate limit, outage, no network), try the other source named for that item
+(Docker Hub ↔ the project's GitHub releases, PECL ↔ Packagist). When neither answers, isolate that item and record
+it as "not checked".
 
 ## Phase 1 --- Repository Safety Checks
 
@@ -52,9 +57,11 @@ they are. Record every choice made here in the PR body.
     - **Variants**: every `<variant>/Dockerfile` that exists (e.g. `fpm`, `apache`, `frankenphp`; `php74` has no
       `frankenphp`). "All Dockerfiles" below always means all Dockerfiles of these variants.
     - **Debian release**: the suffix of the current base image tags (e.g. `trixie`, `bullseye`).
-5. Check that `task generate` works (it needs Task and Docker) and leaves the working tree clean. When it cannot
-   run, the template-based phases (4, 5 and the Gomplate part of 6) can't be verified: skip them and record that,
-   and still run the `FROM`-only phases (2 and 3), whose changes don't depend on the template. When it changes
+5. Check that `task generate` works (it needs Task and Docker) and leaves the working tree clean. When it can't
+   run, use the fallbacks of the PHP images skill ("When `task generate` can't run") and use the working one
+   wherever this command says `task generate`. When none works, the template-based phases (4, 5 and the Gomplate
+   part of 6) can't be verified: skip them and record that, and still run the `FROM`-only phases (2 and 3), whose
+   changes don't depend on the template. When it changes
    files on a clean `origin/main`, the repository was already out of sync: commit that separately first as
    `chore: Regenerate Dockerfiles from template` and record it.
 
@@ -105,7 +112,7 @@ Process each image individually and in order:
    `Node.js` as `<image>`. For example: `chore(deps): Update Composer to 2.11.0`.
 5. If there is no update for this image, skip the commit and move on to the next image.
 
-On failure, isolate this phase (see the top of this command).
+On failure, isolate only the failing item and continue with the next one (see the top of this command).
 
 ## Phase 4 --- PHP Runtime Extension Updates
 
@@ -122,6 +129,8 @@ Process each extension individually and in order:
 1. Look up the latest release on its PECL page and check the release's PHP version requirement (the
    dependencies listed for that release, or the `require.php` constraint of the matching Packagist package). Pick
    the newest release that supports this repository's PHP version.
+   When the release doesn't state which PHP versions it supports, update only within the current `<major>.<minor>`
+   series (e.g. `6.3.0` → `6.3.1`); skip a newer series and record it as "PHP support unknown".
 2. Prefer stable releases. A pre-release (e.g. `3.2.17RC1`) is only acceptable when the current pin is already a
    pre-release because no stable release supports this PHP version yet; move to a stable release as soon as one
    does.
@@ -133,7 +142,7 @@ Process each extension individually and in order:
 
 Repeat for every extension. Each updated extension gets its own commit.
 
-On failure, isolate this phase (see the top of this command).
+On failure, isolate only the failing item and continue with the next one (see the top of this command).
 
 ## Phase 5 --- Builder Stage Tool Updates
 
@@ -159,7 +168,7 @@ Any other `ARG` or `FROM` image in `Dockerfile.tmpl` or the Dockerfiles with a `
 isn't listed in Phases 2--5 is handled the same way, in its own commit, and recorded in the PR body (and as a
 skill-gap issue, so it gets listed here).
 
-On failure, isolate this phase (see the top of this command).
+On failure, isolate only the failing item and continue with the next one (see the top of this command).
 
 ## Phase 6 --- Taskfile Tool Updates
 
@@ -182,7 +191,7 @@ Process each tool individually and in order:
    For example: `chore(deps): Update Hadolint to v2.15.2`.
 5. If there is no update for this tool, skip the commit and move on to the next tool.
 
-On failure, isolate this phase (see the top of this command).
+On failure, isolate only the failing item and continue with the next one (see the top of this command).
 
 ## Phase 7 --- GitHub Actions Updates
 
@@ -235,7 +244,11 @@ worktree, when one was created).
 - `task generate` leaves the working tree clean: the Dockerfiles match the template.
 - The working tree should be clean.
 - Push the branch to the remote and create a pull request for review and merging targeting `origin/main`.
-  The title should be `chore: Update dependencies`.
+  The title should be `chore: Update dependencies`. When the branch already has an open pull request (a reused
+  `updates` branch), don't open a second one: update the existing pull request's description so it lists all its
+  commits.
+- When pushing or creating the pull request fails (e.g. no GitHub authentication), keep the branch locally and end
+  with a report that contains the branch name and the drafted pull request title and description.
 - Add a Pull Request description that lists the changes based on the commits that were made. Stick to the
   commit messages but remove the "chore" prefix. Add a `## Decisions and skipped steps` section when any phase was
   skipped or isolated, a version was held back for PHP compatibility, or a non-default branch or worktree was used.
