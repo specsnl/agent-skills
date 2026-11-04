@@ -67,7 +67,9 @@ For every commit identified in Phase 2, decide whether it applies to each siblin
 - **Does not apply**: the change is specific to the source PHP version and cannot or should not be ported (e.g., a
   new dependency that only supports PHP 8.5, or an extension version that dropped support for the sibling's PHP
   version). For a version bump, check whether a newer version that does support the sibling's PHP version exists
-  (e.g. the latest Xdebug 3.1.x for PHP 7.4) and apply that instead, as an adjusted change.
+  (e.g. the latest Xdebug 3.1.x for PHP 7.4) and apply that instead, as an adjusted change. Pick it with the version
+  rules of the `update-php-images` command: extensions only from PECL, and the Node.js major check before moving a
+  sibling to a new Node.js major.
 
 Keep the sibling's own Debian release and version-specific workarounds (e.g. `DEBIAN_SECURITY_SNAPSHOT` in `php74`)
 intact: a change from the source repository never removes them.

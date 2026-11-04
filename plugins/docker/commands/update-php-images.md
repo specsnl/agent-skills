@@ -105,7 +105,8 @@ Process each image individually and in order:
     - **php-extension-installer** and **Composer**: the latest stable release. Check its release notes for dropped
       support of this repository's PHP version; when it was dropped, keep the newest release that still supports it.
     - **Node.js**: the latest release of the newest **Active LTS** major, found in the release schedule at
-      `https://nodejs.org/en/about/previous-releases`. Never move to a Current (non-LTS) major.
+      `https://nodejs.org/en/about/previous-releases`. Never move to a Current (non-LTS) major. See
+      [Moving Node.js to a new major](#moving-nodejs-to-a-new-major) before changing the major.
 2. If a newer version is available, update the `FROM` line in all Dockerfiles.
 3. Run `task generate` to confirm the output is stable.
 4. Commit all Dockerfiles together in a single commit.
@@ -114,6 +115,26 @@ Process each image individually and in order:
 5. If there is no update for this image, skip the commit and move on to the next image.
 
 On failure, isolate only the failing item and continue with the next one (see the top of this command).
+
+### Moving Node.js to a new major
+
+The `builder_nodejs` stage doesn't install Node.js: it copies `/usr/local/bin/node` and `/usr/local/lib/node_modules`
+from the `node` image, and links `corepack/dist/corepack.js` from it to install npm, Yarn and pnpm. A new major can
+drop something the stage relies on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving to a new
+major:
+
+1. Check that the new image still provides every path the `builder_nodejs` stage of `Dockerfile.tmpl` copies or
+   links: `docker run --rm node:<new-tag> ls /usr/local/lib/node_modules` must list `npm` and `corepack`.
+2. When it does, update to the new major as usual.
+3. When it doesn't, the stage needs a structural change (e.g. installing corepack with
+   `npm install --global corepack@<version>`), which doesn't belong in a dependency update. Don't change the major:
+   update to the latest release of the **current** major instead (when that major is still supported), and record
+   in the PR body which major is blocked, what is missing and the change it needs. This is an expected outcome, not
+   a failure: no skill-gap issue is needed for it.
+4. When the check can't run (no Docker), keep the current major, update within it and record the new major as "not
+   verified".
+5. When the current major has reached end-of-life, say so prominently at the top of the `## Decisions and skipped
+   steps` section, so the structural change gets prioritised.
 
 ## Phase 4 --- PHP Runtime Extension Updates
 
