@@ -120,22 +120,29 @@ On failure, isolate only the failing item and continue with the next one (see th
 
 The images don't install Node.js themselves: the stage that provides it (`COPY --from=node ...` in
 `Dockerfile.tmpl`; the standalone Node.js target, or `builder` when Node.js lives inside it — see "Where Node.js
-lives" in the PHP images skill) copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image, and links
-`corepack/dist/corepack.js` from it to install npm, Yarn and pnpm. A new major can drop something that stage relies
-on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving to a new major:
+lives" in the PHP images skill) copies `/usr/local/bin/node` and `/usr/local/lib/node_modules` from the `node` image,
+and uses corepack to install npm, Yarn and pnpm. That corepack is either the copy bundled with the `node` image or
+installed from npm, pinned by `ARG COREPACK_VERSION` (see "Where corepack comes from" in the PHP images skill). A new
+major can drop something that stage relies on — e.g. the Node.js 25+ images no longer bundle corepack. Before moving
+to a new major:
 
 1. Check that the new image still provides every path that stage copies or links, as written in the current
-   `Dockerfile.tmpl` — e.g. `docker run --rm node:<new-tag> ls /usr/local/lib/node_modules` must list `npm` and
-   `corepack` as long as the template links corepack from there.
-2. When it does, update to the new major as usual.
-3. When it doesn't, the stage needs a structural change (e.g. installing corepack with
-   `npm install --global corepack@<version>`), which doesn't belong in a dependency update. Don't change the major:
-   update to the latest release of the **current** major instead (when that major is still supported), and record
-   in the PR body which major is blocked, what is missing and the change it needs. This is an expected outcome, not
-   a failure: no skill-gap issue is needed for it.
-4. When the check can't run (no Docker), keep the current major, update within it and record the new major as "not
+   `Dockerfile.tmpl` — e.g. `docker run --rm node:<new-tag> ls /usr/local/lib/node_modules` must list `npm`, and
+   also `corepack` as long as the template links the bundled copy (no `ARG COREPACK_VERSION`).
+2. When the template installs corepack from npm, also check that the pinned `COREPACK_VERSION` supports the new
+   major: its `engines.node` (`https://registry.npmjs.org/corepack/<version>`) must match the new tag's version.
+   When it doesn't, update `COREPACK_VERSION` (Phase 5 rules) in the same commit as the Node.js image; when no
+   corepack release supports it yet, treat the major as blocked (step 4).
+3. When everything is there, update to the new major as usual.
+4. When it isn't, the stage needs a structural change, which doesn't belong in a dependency update. Don't change
+   the major: update to the latest release of the **current** major instead (when that major is still supported),
+   and record in the PR body which major is blocked, what is missing and the change it needs. For a missing bundled
+   corepack, that change is installing corepack from npm (see "Where corepack comes from" in the PHP images skill);
+   when a sibling repository already has it, name `/sync-sibling-php-repos` from that sibling as the way to port it.
+   This is an expected outcome, not a failure: no skill-gap issue is needed for it.
+5. When the check can't run (no Docker), keep the current major, update within it and record the new major as "not
    verified".
-5. When the current major has reached end-of-life, say so prominently at the top of the `## Decisions and skipped
+6. When the current major has reached end-of-life, say so prominently at the top of the `## Decisions and skipped
    steps` section, so the structural change gets prioritised.
 
 ## Phase 4 --- PHP Runtime Extension Updates
@@ -176,17 +183,23 @@ On failure, isolate only the failing item and continue with the next one (see th
 
 ## Phase 5 --- Builder Stage Tool Updates
 
-`Dockerfile.tmpl` pins the following tools in the builder stage, each with a `# Latest version of ...` comment:
+`Dockerfile.tmpl` pins the following tools in the builder stages, each with a `# Latest version of ...` comment:
 
 - `XDEBUG_VERSION` — `https://pecl.php.net/package/xdebug`
 - `PCOV_VERSION` — `https://pecl.php.net/package/pcov`
 - `FIXUID_VERSION` — the GitHub releases of `boxboat/fixuid`
+- `COREPACK_VERSION` — `https://www.npmjs.com/package/corepack`, in the stage that holds Node.js. Only present when
+  the repository installs corepack from npm (see "Where corepack comes from" in the PHP images skill); skip it
+  otherwise, without recording it as skipped.
 
 Process each tool individually and in order:
 
 1. Look up the newest stable release that supports this repository's PHP version: for Xdebug and pcov with the same
    PECL rules as Phase 4, for fixuid on its GitHub releases. For
    example, Xdebug 3.1.x is the last series that supports PHP 7.4, so `php74` only receives 3.1.x patch releases.
+   For corepack, look up the `latest` dist-tag on `https://registry.npmjs.org/corepack/latest` (or its GitHub
+   releases, `nodejs/corepack`), and check that its `engines.node` matches the version of the `node` image (after
+   Phase 3); otherwise keep the newest release that does, and record the newer one with the reason.
 2. If a newer version is available, update the corresponding `ARG` in `Dockerfile.tmpl` and run `task generate`.
 3. Commit `Dockerfile.tmpl` and all Dockerfiles together in a single commit.
    Commit message: `chore(deps): Update <tool-name> to <new-version>`.
@@ -286,7 +299,7 @@ worktree, when one was created).
     2. PHP base image versions
     3. php-extension-installer, Composer and Node.js images (one commit each)
     4. PHP runtime extensions: event, igbinary, redis, amqp (one commit each)
-    5. Builder tools: Xdebug, pcov, fixuid (one commit each)
+    5. Builder tools: Xdebug, pcov, fixuid, corepack when pinned (one commit each)
     6. Taskfile tools: Hadolint, Gomplate (one commit each)
     7. GitHub Actions versions
     8. Copyright year
@@ -315,7 +328,7 @@ Updated the following dependencies:
 - Updated Composer to 2.11.1
 - Updated redis extension to 6.4.0
 
-Already up to date: igbinary, amqp, Xdebug, pcov, fixuid, Hadolint, Gomplate, GitHub Actions, LICENSE year.
+Already up to date: igbinary, amqp, Xdebug, pcov, fixuid, corepack, Hadolint, Gomplate, GitHub Actions, LICENSE year.
 
 Verified: `task generate` and `task lint` pass, and the final target of every variant builds.
 
@@ -323,7 +336,8 @@ Verified: `task generate` and `task lint` pass, and the final target of every va
 
 - event 3.2.0 is on Packagist but not on PECL yet: kept at 3.1.6.
 - Node.js 26 (Active LTS) images no longer bundle corepack, which the Node.js stage needs: kept on
-  Node.js 24 and updated to its latest release. Moving to 26 needs corepack installed separately.
+  Node.js 24 and updated to its latest release. Moving to 26 needs corepack installed from npm
+  (`ARG COREPACK_VERSION`), as in php85: port it with `/sync-sibling-php-repos`.
 ```
 
 To update the other PHP image repositories, run this command in each of them: it checks every version against

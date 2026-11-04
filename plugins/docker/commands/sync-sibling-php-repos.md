@@ -69,6 +69,13 @@ For every commit identified in Phase 2, decide whether it applies to each siblin
   Port a change to the Node.js setup into the stage that holds Node.js in the sibling. A commit that moves Node.js
   into `builder` (removing the standalone target) is ported as a whole, including the Taskfile, workflow and
   ruleset changes that come with it; when it is already done in the sibling, skip it as "already applied".
+- **corepack comes from elsewhere**: the source installs corepack from npm (`ARG COREPACK_VERSION`) and the sibling
+  still links the copy bundled with the `node` image, or the other way around (see "Where corepack comes from" in
+  the PHP images skill). A commit that switches to installing corepack from npm is ported as a whole, and before
+  (or together with) any Node.js 25+ bump: a sibling that links the bundled corepack must never move to Node.js 25+
+  on its own, since those images no longer bundle it. A `COREPACK_VERSION` bump only applies to a sibling that
+  installs corepack from npm; for any other sibling, skip it as "does not apply" (corepack comes with its `node`
+  image).
 - **Does not apply**: the change is specific to the source PHP version and cannot or should not be ported (e.g., a
   new dependency that only supports PHP 8.5, or an extension version that dropped support for the sibling's PHP
   version). For a version bump, check whether a newer version that does support the sibling's PHP version exists
