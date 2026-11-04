@@ -28,8 +28,9 @@ in a phase with one commit per item (Phases 3--6), only that item; the items alr
 this command doesn't describe is handled the same way, plus a skill-gap issue.
 
 When a version source can't be reached (rate limit, outage, no network), try the other source named for that item
-(Docker Hub ↔ the project's GitHub releases, PECL ↔ Packagist). When neither answers, isolate that item and record
-it as "not checked".
+(Docker Hub ↔ the project's GitHub releases). PECL has no substitute: `install-php-extensions` downloads extensions
+from PECL, so a version found elsewhere (e.g. on Packagist) can't be installed until PECL has it. When no source
+answers, isolate that item and record it as "not checked".
 
 ## Phase 1 --- Repository Safety Checks
 
@@ -126,19 +127,25 @@ comment pointing at its PECL page:
 
 Process each extension individually and in order:
 
-1. Look up the latest release on its PECL page and check the release's PHP version requirement (the
-   dependencies listed for that release, or the `require.php` constraint of the matching Packagist package). Pick
-   the newest release that supports this repository's PHP version.
+1. Look up the releases **on PECL**, the source `install-php-extensions` downloads from:
+   `https://pecl.php.net/rest/r/<extension>/allreleases.xml` lists every version with its stability (newest first).
+   Packagist can list a release days before it is published on PECL; such a version can't be installed yet. When
+   Packagist (or the project's GitHub releases) is ahead of PECL, keep the PECL version and record the newer version
+   as "not on PECL yet" — this is not a failure and needs no skill-gap issue.
+2. Check the release's PHP version requirement: the `<php><min>`/`<max>` of
+   `https://pecl.php.net/rest/r/<extension>/package.<version>.xml`, or the `require.php` constraint of the matching
+   Packagist package (more accurate, when it exists). Pick the newest PECL release that supports this repository's
+   PHP version.
    When the release doesn't state which PHP versions it supports, update only within the current `<major>.<minor>`
    series (e.g. `6.3.0` → `6.3.1`); skip a newer series and record it as "PHP support unknown".
-2. Prefer stable releases. A pre-release (e.g. `3.2.17RC1`) is only acceptable when the current pin is already a
+3. Prefer stable releases. A pre-release (e.g. `3.2.17RC1`) is only acceptable when the current pin is already a
    pre-release because no stable release supports this PHP version yet; move to a stable release as soon as one
    does.
-3. If a newer version is available, update the corresponding `ARG` in `Dockerfile.tmpl` and run `task generate`.
-4. Commit `Dockerfile.tmpl` and all Dockerfiles together in a single commit.
+4. If a newer version is available, update the corresponding `ARG` in `Dockerfile.tmpl` and run `task generate`.
+5. Commit `Dockerfile.tmpl` and all Dockerfiles together in a single commit.
    Commit message: `chore(deps): Update <extension> extension to <new-version>`.
    For example: `chore(deps): Update redis extension to 6.4.0`.
-5. If there is no update for this extension, skip the commit and move on to the next extension.
+6. If there is no update for this extension, skip the commit and move on to the next extension.
 
 Repeat for every extension. Each updated extension gets its own commit.
 
@@ -154,7 +161,8 @@ On failure, isolate only the failing item and continue with the next one (see th
 
 Process each tool individually and in order:
 
-1. Look up the newest stable release that supports this repository's PHP version (same rules as Phase 4). For
+1. Look up the newest stable release that supports this repository's PHP version: for Xdebug and pcov with the same
+   PECL rules as Phase 4, for fixuid on its GitHub releases. For
    example, Xdebug 3.1.x is the last series that supports PHP 7.4, so `php74` only receives 3.1.x patch releases.
 2. If a newer version is available, update the corresponding `ARG` in `Dockerfile.tmpl` and run `task generate`.
 3. Commit `Dockerfile.tmpl` and all Dockerfiles together in a single commit.
