@@ -17,21 +17,61 @@ The PHP images are Docker images that serve as the base for the various PHP envi
 images are built on top of official PHP images and include additional dependencies and configurations specific to our
 needs.
 
-Each PHP image repository follows a consistent structure with three main Dockerfiles (variants):
+Each PHP image repository follows a consistent structure. The images come in up to three variants, each with its own
+Dockerfile:
 
 - `fpm/Dockerfile`: The Dockerfile for the FPM variant of the image.
 - `apache/Dockerfile`: The Dockerfile for the Apache variant of the image.
 - `frankenphp/Dockerfile`: The Dockerfile for the FrankenPHP variant of the image.
 
-Furthermore, there is a `files` directory that contains additional files used during the build process, such as
-configuration files and scripts.
-
-- `files/general`: Contains files that are shared across all PHP Dockerfiles.
-- `files/<variant_name>`: Contains files specific to the `<variant_name>` variant of the image.
-
 Not every repository ships every variant: a variant is only present when that PHP version supports it (e.g.
 FrankenPHP requires PHP 8.2+, so `php74` has no `frankenphp` variant). Check which `<variant>/Dockerfile` files a
 repository actually contains instead of assuming all three.
+
+### The Dockerfiles are generated from a template
+
+The variant Dockerfiles are **generated** — do not edit them by hand, except for their `FROM` image references:
+
+- `Dockerfile.tmpl`: the single source for all variants (a [gomplate](https://docs.gomplate.ca/) template). All
+  stages, `ARG`s (extension and tool versions), packages and `RUN` steps live here. Variant-specific parts are
+  wrapped in conditionals such as `{{ if .is_frankenphp }}`.
+- `variants/<variant>.yaml`: the template data per variant (e.g. `image_label`, `image_url`, `is_frankenphp`).
+- `<variant>/Dockerfile`: the generated output. The external images of the `FROM` lines (`AS
+  php_extension_installer`, `AS runtime`, `AS composer` and `AS node`) are the only values that are **not** in the
+  template: the generator reads them back from the existing `<variant>/Dockerfile` and writes them into the new
+  output. They are therefore changed by editing the `FROM` line in each `<variant>/Dockerfile` directly.
+- `task generate` (in `Taskfile.dist.yml`) regenerates every `<variant>/Dockerfile` from the template, via the
+  `hairyhenderson/gomplate` Docker image (pinned by `GOMPLATE_TAG_VERSION`).
+- `scripts/pre-commit`: a git hook (installed with `task install:hooks`) that runs `task generate` and stages the
+  Dockerfiles on every commit.
+- The pull request workflow (`.github/workflows/pr.yml`) runs `task generate` and fails when the committed
+  Dockerfiles differ from the output, so the template and the Dockerfiles must always be committed together and
+  in sync.
+
+So: to change anything other than a `FROM` image, edit `Dockerfile.tmpl` and run `task generate`. To change a `FROM`
+image, edit it in every `<variant>/Dockerfile` (and run `task generate` to confirm the output is stable). Never rely
+on the pre-commit hook alone — it is not installed in every clone, and a global `core.hooksPath` bypasses it.
+
+### Other files
+
+- `files/general`: Contains files that are shared across all variants (copied into the image).
+- `files/<variant_name>`: Contains files specific to the `<variant_name>` variant of the image.
+- `Taskfile.dist.yml`: build, lint (Hadolint, pinned by `HADOLINT_TAG_VERSION`), generate, hook and shell tasks.
+- `.github/workflows/`: `pr.yml` (template check and image builds), `main.yml` and `tag.yml` (publishing), all
+  built on the reusable workflows of `specsnl/github-actions`.
+- `.github/dependabot.yml`: daily Docker image (per variant directory) and GitHub Actions updates.
+
+### Differences between the versions
+
+The repositories are kept as similar as possible, but each PHP version may differ where it has to:
+
+- **Variants**: older PHP versions lack variants they don't support (see above).
+- **Debian release**: the base images use the newest Debian release available for that PHP version (e.g. `trixie`
+  for PHP 8.3+, `bullseye` for PHP 7.4). Keep the Debian release of an existing tag when updating it.
+- **Version-specific workarounds**: e.g. `php74` pins `ARG DEBIAN_SECURITY_SNAPSHOT` because Debian bullseye is
+  end-of-life; its README explains why. Never remove such a workaround as a cleanup.
+- **Extension and tool versions**: an `ARG` version can be lower in an older repository because newer releases
+  dropped support for that PHP version (e.g. Xdebug 3.1.x is the last series supporting PHP 7.4).
 
 ## Maintained PHP versions
 
