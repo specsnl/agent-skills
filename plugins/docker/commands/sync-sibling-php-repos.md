@@ -44,7 +44,9 @@ situation this command doesn't describe is handled the same way, plus a skill-ga
    organisation (see "Maintained PHP versions") and exclude the current one. Check locally first (sibling
    directories alongside the current repository) and confirm each one by verifying its git remote URL or README.
    Clone a sibling that only exists on GitHub next to the others. Record the local path of every sibling.
-5. For every located sibling, check whether its working tree is clean (no staged changes, no unstaged changes, no
+5. For every sibling, record its PHP version, its variants (the `<variant>/Dockerfile` files it has) and its
+   Debian release, as described in the PHP images skill.
+6. For every located sibling, check whether its working tree is clean (no staged changes, no unstaged changes, no
    untracked files). A dirty sibling is left untouched: work in a fresh worktree of that sibling instead (see
    Phase 4). When that isn't possible either, skip only that sibling and list it, with what it has outstanding, in
    the summary. A sibling that can't be found (locally or on GitHub) is skipped the same way.
@@ -56,8 +58,19 @@ For every commit identified in Phase 2, decide whether it applies to each siblin
 - **Applies as-is**: the change is version-agnostic (e.g., a tooling update that supports all PHP versions).
 - **Applies with adjustments**: the change is relevant but version strings must be adapted (e.g., a base image
   bump from `php:8.5.x` must become `php:8.4.x` in `php84`).
+- **Applies partially**: the change touches a variant the sibling doesn't have (e.g. `frankenphp` in `php74`):
+  apply only the parts for the variants it does have, and drop the rest (including `{{ if .is_frankenphp }}` blocks
+  and `files/frankenphp` changes when the sibling has no FrankenPHP variant).
 - **Does not apply**: the change is specific to the source PHP version and cannot or should not be ported (e.g., a
-  new dependency that only supports PHP 8.5).
+  new dependency that only supports PHP 8.5, or an extension version that dropped support for the sibling's PHP
+  version). For a version bump, check whether a newer version that does support the sibling's PHP version exists
+  (e.g. the latest Xdebug 3.1.x for PHP 7.4) and apply that instead, as an adjusted change.
+
+Keep the sibling's own Debian release and version-specific workarounds (e.g. `DEBIAN_SECURITY_SNAPSHOT` in `php74`)
+intact: a change from the source repository never removes them.
+
+Remember how the Dockerfiles are made (see the PHP images skill): a change in a `<variant>/Dockerfile` other than a
+`FROM` image comes from `Dockerfile.tmpl`, so port the template change, not the generated output.
 
 Document the per-sibling plan before proceeding: which commits apply, what adjustments are needed, and in what
 order they should be applied (preserve the original commit order).
@@ -81,9 +94,13 @@ Repeat the following steps for each sibling, working through them one sibling at
    commit applies to this sibling, don't push a branch or open a PR for it.
 6. Apply the relevant changes identified in Phase 3. **Do not use `git cherry-pick`** — manually replicate each
    change so that PHP version strings and any other version-specific values are correctly adapted for this sibling.
-   Apply the changes in the original commit order.
-7. After applying the changes for each logical commit, verify the result looks correct. Then commit with the exact
-   same commit message as the corresponding commit in the source repository.
+   Apply the changes in the original commit order. Edit `Dockerfile.tmpl` for template changes and the `FROM` lines
+   of the sibling's `<variant>/Dockerfile` files for image changes.
+7. After applying the changes for each logical commit, run `task generate` and check that the regenerated
+   Dockerfiles only contain the expected changes; commit `Dockerfile.tmpl` together with them. When `task generate`
+   can't run, only commit changes that don't touch the template (e.g. `FROM` images, workflows) and skip the rest,
+   recording it. Then commit with the commit message of the corresponding commit in the source repository; when
+   the version in that message was adjusted for this sibling, use the adjusted version.
 8. Push the branch: `git push -u origin <branch-name>`
 9. Create a pull request from `<branch-name>` to `main`. For the PR title, reuse the source PR title verbatim. For
    the body, do not copy the source PR description verbatim — instead, derive it from the commits that were actually
@@ -104,7 +121,8 @@ After processing all siblings, provide a summary table listing the following. Be
 skipped parts: skipped siblings (and why), suffixed branch names, worktrees used, a derived PR title, uncommitted
 changes in the source repository, and any skill-gap issue filed.
 
-| Sibling repository | Branch created  | Pull request URL | Skipped commits (reason)        |
-|--------------------|-----------------|------------------|---------------------------------|
-| `php84`            | `<branch-name>` | `<PR URL>`       | e.g., none                      |
-| `php83`            | `<branch-name>` | `<PR URL>`       | e.g., `abc1234` (PHP 8.5+ only) |
+| Sibling repository | Branch created  | Pull request URL | Skipped commits (reason)          |
+|--------------------|-----------------|------------------|-----------------------------------|
+| `php84`            | `<branch-name>` | `<PR URL>`       | e.g., none                        |
+| `php83`            | `<branch-name>` | `<PR URL>`       | e.g., `abc1234` (PHP 8.5+ only)   |
+| `php74`            | `<branch-name>` | `<PR URL>`       | e.g., `def5678` (FrankenPHP only) |
