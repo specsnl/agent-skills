@@ -51,6 +51,37 @@ The variant Dockerfiles are **generated** — do not edit them by hand, except f
 So: to change anything other than a `FROM` image, edit `Dockerfile.tmpl` and run `task generate`. To change a `FROM`
 image, edit it in every `<variant>/Dockerfile` (and run `task generate` to confirm the output is stable). Never rely
 on the pre-commit hook alone — it is not installed in every clone, and a global `core.hooksPath` bypasses it.
+`task install:hooks` copies the hook to `.git/hooks`, which fails in a `git worktree` (there `.git` is a file); don't
+install it there, just run `task generate` yourself.
+
+#### When `task generate` can't run
+
+`task generate` needs Task and Docker. Resolve a missing tool in this order:
+
+1. **Docker is missing, but a `gomplate` binary is installed** (ideally the version of `GOMPLATE_TAG_VERSION`): run
+   the same generation without Docker, from the repository root:
+
+    ```bash
+    for f in */Dockerfile; do
+        variant="${f%/Dockerfile}"
+        export BASE_IMAGE="$(awk '/^FROM .* AS runtime$/ { print $2; exit }' "$f")"
+        export PHP_EXTENSION_INSTALLER_IMAGE="$(awk '/^FROM .* AS php_extension_installer$/ { print $2; exit }' "$f")"
+        export COMPOSER_IMAGE="$(awk '/^FROM .* AS composer$/ { print $2; exit }' "$f")"
+        export NODE_IMAGE="$(awk '/^FROM .* AS node$/ { print $2; exit }' "$f")"
+        gomplate --context ".=file://$PWD/variants/$variant.yaml" --file Dockerfile.tmpl > "$f.new" \
+            && mv -f "$f.new" "$f"
+    done
+    ```
+
+   The images are read before the output is written, and the output goes through a temporary file, because the
+   generator reads the `FROM` images back from the same Dockerfile it overwrites. Record that the fallback was used.
+2. **Task is missing, but Docker works:** run the `docker run ... hairyhenderson/gomplate` command of the
+   `generate:variant` task in `Taskfile.dist.yml` for every variant, with the same environment variables as above.
+3. **Neither works:** changes to `Dockerfile.tmpl` can't be made safely. Skip them and record it; `FROM`-only
+   changes can still be committed, because they don't change the generated output.
+
+When the pre-commit hook is installed and fails because of a missing tool, the commit fails with it. Don't bypass
+it with `--no-verify`: resolve the tool as above, or skip that change and record it.
 
 ### Other files
 
@@ -88,9 +119,21 @@ gh repo list specsnl --limit 1000 --no-archived --json name \
     --jq '[.[].name | select(test("^php[0-9]{2}$"))] | sort | reverse | .[]'
 ```
 
-When the `gh` CLI is unavailable, use a GitHub MCP repository search (`org:specsnl php in:name`) and apply the same
-name filter. When neither works, fall back to the local sibling directories (see below) and record that the set may
-be incomplete.
+The PHP image repositories are public, so no authentication is needed to list or clone them. Use the first source
+that works, and record which one was used:
+
+1. The `gh` CLI, as above.
+2. A GitHub MCP repository search (`org:specsnl php in:name`), with the same name filter.
+3. The public GitHub API without authentication:
+
+    ```bash
+    curl -fsSL 'https://api.github.com/orgs/specsnl/repos?type=public&per_page=100' \
+        | jq -r '[.[] | select(.archived | not) | .name | select(test("^php[0-9]{2}$"))] | sort | reverse | .[]'
+    ```
+
+    Add `&page=2`, `&page=3`, … while a page returns 100 repositories.
+
+4. The local sibling directories (see below). Record that the set may be incomplete.
 
 The newest version is the repository with the highest number. If PHP has released a newer version but its Specsnl
 repository has not been created yet, that version is not maintained yet: the highest existing repository is the
@@ -142,13 +185,23 @@ one**. When you come across the legacy dash-in-tag form, treat it as the older c
 the new path-segment form: move the variant/target segments out of the tag into the image path, leaving only
 the version (e.g. `latest`) as the tag.
 
+### Verify a migrated reference
+
+Before replacing a reference, check that the new image exists:
+`docker buildx imagetools inspect <new-reference>` (or `docker manifest inspect`) exits non-zero when it doesn't.
+When the new reference doesn't exist — e.g. an old release tag that was never published under the new scheme, or a
+PHP version without a Specsnl repository — leave the old reference unchanged and record it. When the check can't run
+(no Docker), migrate only `latest` and `main` references, which exist for every repository, and record the others
+as unverified and unchanged.
+
 ### Legacy vendor (older)
 
 The images used to be published under the `ilyes512` vendor before moving to `specsnl`. The correct,
 current vendor is **`specsnl`**. These older `ilyes512`-vendored images predate the path-segment scheme, so
 they use the legacy dash-in-tag naming — for example `ghcr.io/ilyes512/php85:builder-latest`. When you
 encounter such a reference, migrate it in-place to **both** the current vendor and the new path-segment
-scheme: `ghcr.io/ilyes512/php85:builder-latest` becomes `ghcr.io/specsnl/php85/builder:latest`.
+scheme: `ghcr.io/ilyes512/php85:builder-latest` becomes `ghcr.io/specsnl/php85/builder:latest`. Verify the new
+reference first, as described in [Verify a migrated reference](#verify-a-migrated-reference).
 
 ## How to find sibling images on GitHub
 
@@ -163,8 +216,12 @@ example, if you are looking at the `php85` repository and the organisation conta
 If you are working locally in one of the PHP image repositories and want to find the sibling images for other PHP
 versions, look for directories named `php<two digits>` in the same parent directory. For example, if you are in the
 `php85` repository, check whether `php84`, `php83`, `php74` and any other `php<NN>` directories exist alongside it.
-Verify each one by checking its git remote URL (it must point to `specsnl/php<NN>`) or by reading its README.
+Verify each one by checking its git remote URL (it must point to `specsnl/php<NN>`) or by reading its README. A
+remote that points to the old `ilyes512/php<NN>` repository is the same repository: it moved to `specsnl` and GitHub
+redirects the old URL. Use it as-is, don't change the remote, and mention the outdated remote in the result.
 
 Compare the local directories with the organisation's list of repositories: a sibling that exists on GitHub but not
-locally can be cloned next to the others (`gh repo clone specsnl/php<NN> ../php<NN>`). A local `php<NN>` directory
-without a matching repository in the organisation is not a sibling.
+locally can be cloned next to the others: `git clone https://github.com/specsnl/php<NN> ../php<NN>` (the
+repositories are public, so this works without `gh`). When `../php<NN>` already exists but isn't that repository,
+leave it untouched and clone to `../specsnl-php<NN>` instead. A local `php<NN>` directory without a matching
+repository in the organisation is not a sibling.
