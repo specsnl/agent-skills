@@ -44,8 +44,8 @@ they are. Record every choice made here in the PR body.
     - Locally: when fully merged into `main`, or without unique commits, delete and recreate it from `origin/main`.
     When it contains unique commits, leave it untouched and use the suffixed name.
 3. Prepare the branch from `origin/main`:
-    - **On `main` with a clean working tree** (no staged, unstaged or untracked changes): create the branch from
-    step 2 from `origin/main` and check it out.
+    - **On `main`, or on a detached `HEAD` at `origin/main`, with a clean working tree** (no staged, unstaged or
+    untracked changes): create the branch from step 2 from `origin/main` and check it out.
     - **Another branch is checked out, or the working tree is dirty:** leave the checkout untouched and run the
     whole update in a fresh worktree instead: `git worktree add -b <branch> <path> origin/main` (e.g. a sibling
     directory `../<repo>-updates`). Run every later phase in that worktree, and remove it
@@ -251,6 +251,22 @@ On failure, isolate this phase (see the top of this command).
    Commit message: `chore: Update copyright year`.
 4. If there are no changes, skip the commit and move on.
 
+## Phase 9 --- Verification
+
+Verify the branch as a whole before pushing it:
+
+1. Run `task generate` (or its fallback): the working tree must stay clean.
+2. Run `task lint` (Hadolint on every Dockerfile).
+3. When Docker is available, build the `builder_nodejs` target of every variant — it contains every stage, so it
+   proves the base image, the extension downloads, Composer and Node.js all work:
+   `docker build --target builder_nodejs --file <variant>/Dockerfile .`
+   Check that PHP reports the expected version and that the updated extensions are loaded
+   (`docker run --rm <image> php -v`, `php -m`).
+4. When a step fails, find the commit that causes it (rebuild without that update) and isolate that update: drop
+   its commit from the branch (`git rebase --onto <sha>^ <sha>`; these are this run's own unpushed commits) — or,
+   when the branch was already pushed (a reused `updates` branch), `git revert` it instead of rewriting history.
+   Record it with the error and repeat the verification. When Docker isn't available, skip the build, record that, and rely on the pull request's CI builds.
+
 ------------------------------------------------------------------------
 
 ## Final State
@@ -279,18 +295,29 @@ worktree, when one was created).
 - When pushing or creating the pull request fails (e.g. no GitHub authentication), keep the branch locally and end
   with a report that contains the branch name and the drafted pull request title and description.
 - Add a Pull Request description that lists the changes based on the commits that were made. Stick to the
-  commit messages but remove the "chore" prefix. Add a `## Decisions and skipped steps` section when any phase was
-  skipped or isolated, a version was held back for PHP compatibility, or a non-default branch or worktree was used.
+  commit messages but remove the "chore" prefix, and add the old and new versions where they help (e.g.
+  `PHP 8.5.11 → 8.5.12`). List the items that were checked and are already up to date on one line, and the result of
+  the Phase 9 verification. Add a `## Decisions and skipped steps` section when any phase was
+  skipped or isolated, a version was held back (PHP compatibility, not on PECL yet, a blocked Node.js major), or a
+  non-default branch or worktree was used.
   For example:
 
 ```md
 Updated the following dependencies:
 
-- Updated PHP base image versions
-- Updated Composer to 2.11.0
+- Updated PHP base image versions (PHP 8.5.11 → 8.5.12, FrankenPHP 1.13.1 → 1.13.4)
+- Updated Composer to 2.11.1
 - Updated redis extension to 6.4.0
-- Updated Xdebug to 3.5.4
-- Updated GitHub Actions versions
+
+Already up to date: igbinary, amqp, Xdebug, pcov, fixuid, Hadolint, Gomplate, GitHub Actions, LICENSE year.
+
+Verified: `task generate` and `task lint` pass, and the `builder_nodejs` target of every variant builds.
+
+## Decisions and skipped steps
+
+- event 3.2.0 is on Packagist but not on PECL yet: kept at 3.1.6.
+- Node.js 26 (Active LTS) images no longer bundle corepack, which the `builder_nodejs` stage needs: kept on
+  Node.js 24 and updated to its latest release. Moving to 26 needs corepack installed separately.
 ```
 
 To update the other PHP image repositories, run this command in each of them: it checks every version against
