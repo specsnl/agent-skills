@@ -1,6 +1,7 @@
 {
     "name": "code",
     "description": "A Specs plugin with cross-language code authoring conventions",
+    "version": "0.0.8",
     "author": {
         "name": "Specsnl Team",
         "email": "info@specs.nl",
@@ -8,5 +9,11 @@
     },
     "repository": "specsnl/agent-skills",
     "license": "MIT",
-    "keywords": ["code", "comments", "conventions", "specs", "plugin"]
+    "keywords": [
+        "code",
+        "comments",
+        "conventions",
+        "specs",
+        "plugin"
+    ]
 }

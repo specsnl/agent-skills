@@ -38,13 +38,14 @@ jobs:
         run: |
           # Merge commits are the only allowed merge strategy for main; anything else (like this bump) is skipped.
           git rev-parse --verify --quiet HEAD^2 > /dev/null || exit 0
-          git show HEAD~1:.claude-plugin/marketplace.json \
-            | bash .githooks/bump-versions.sh $(git diff --name-only HEAD~1 HEAD -- plugins/ | cut -d'/' -f2 | sort -u)
+          plugins="$(git diff --name-only HEAD~1 HEAD -- plugins/ | cut -d'/' -f2 | sort -u)"
+          for plugin in $plugins; do
+            git show "HEAD~1:plugins/$plugin/.claude-plugin/plugin.json" 2>/dev/null || true
+          done | bash .githooks/bump-versions.sh $plugins
 
-          MARKETPLACE_FILE=".claude-plugin/marketplace.json"
           git config user.name "specsnl[bot]"
           git config user.email "${BOT_USER_ID}+specsnl[bot]@users.noreply.github.com"
-          git add "$MARKETPLACE_FILE"
+          git add plugins/*/.claude-plugin/plugin.json
           git diff --cached --quiet || (
             git commit -m "chore: bump plugin version(s)"
             git push

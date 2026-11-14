@@ -1,6 +1,7 @@
 {
     "name": "linear",
     "description": "A Specs plugin for creating Linear issues from raw client input",
+    "version": "0.0.7",
     "author": {
         "name": "Specsnl Team",
         "email": "info@specs.nl",
@@ -8,5 +9,10 @@
     },
     "repository": "specsnl/agent-skills",
     "license": "MIT",
-    "keywords": ["linear", "intake", "specs", "plugin"]
+    "keywords": [
+        "linear",
+        "intake",
+        "specs",
+        "plugin"
+    ]
 }
