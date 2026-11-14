@@ -53,7 +53,11 @@
                 "source": "github",
                 "repo": "github/gh-stack"
             },
-            "description": "Manages stacked PRs and splits multi-part work into reviewable branches with the gh-stack GitHub CLI extension."
+            "description": "Manages stacked PRs and splits multi-part work into reviewable branches with the gh-stack GitHub CLI extension.",
+            "strict": false,
+            "skills": [
+                "./skills/gh-stack"
+            ]
         },
         {
             "name": "git-workflow",
