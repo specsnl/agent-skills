@@ -23,6 +23,22 @@ The marketplace namespace is `specs`. So after adding this marketplace you will 
 | git-workflow@specs | Atomic-commit Git workflow skills: amend/fixup, conflict resolution, reflog undo, bisect debugging             |
 | gh-stack@specs     | Manages stacked PRs and splits multi-part work into reviewable branches with the gh-stack GitHub CLI extension |
 
+## Reference these plugins from another marketplace
+
+Each plugin carries its own `version` in `plugins/<plugin>/.claude-plugin/plugin.json`, so another marketplace can
+list a plugin from this repository without tracking its version. Leave `version` out of the entry:
+
+```json
+{
+    "name": "code",
+    "source": {
+        "source": "git-subdir",
+        "url": "specsnl/agent-skills",
+        "path": "plugins/code"
+    }
+}
+```
+
 ## Recommended tools
 
 - **[crit](https://crit.md)** (`crit@specs`) — Review and comment on plans, code diffs, and frontend elements, then send feedback directly to your agent. Requires the `crit` CLI binary to be installed separately:
