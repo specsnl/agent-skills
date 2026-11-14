@@ -41,7 +41,7 @@
         {
             "name": "github",
             "source": "./plugins/github",
-            "version": "0.0.14",
+            "version": "0.0.15",
             "description": "A GitHub-specific plugin for Specs"
         },
         {
