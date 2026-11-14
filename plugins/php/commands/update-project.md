@@ -271,6 +271,17 @@ On failure, isolate this phase (see [Failure handling](#failure-handling)).
       dash-in-tag form, **migrate it in-place to the new path-segment form** — move the variant/target
       segments out of the tag into the image path, leaving only the version (e.g. `latest`) as the tag. This
       migration is a change in its own right even when the version (e.g. `latest`) does not change.
+    - **Specsnl Node.js images.** The standalone Node.js target (`<...>/builder_nodejs`, by some repositories
+      also published as `<...>/node`) is being merged into `builder`, which then contains Node.js itself. Look
+      for references to these images in the files above and also in the Taskfiles and in the `container:` /
+      `image:` keys of the CI workflows. Once step 2 has picked the target version of such a reference, check
+      whether that version still has the standalone target, as described in "Where Node.js lives" of the
+      `php-images` skill of the `docker` plugin (fetch the release's `fpm/Dockerfile` and look for
+      `AS builder_nodejs`). When it doesn't, rewrite the reference to `<...>/builder`, keeping the variant (e.g.
+      `ghcr.io/specsnl/php85/builder_nodejs:latest` → `ghcr.io/specsnl/php85/builder:latest`). Like the legacy
+      tag migration, this is a change in its own right even when the version does not change. Don't decide
+      from the registry alone: the old `builder_nodejs` images stay published but no longer receive updates.
+      When the Dockerfile can't be fetched, leave the reference unchanged and record it in the report.
 2. For each image found, check for a newer version:
     - For images hosted on `ghcr.io/*`: use the GitHub Releases API to find the latest release tag for that
     repository.
@@ -285,7 +296,7 @@ On failure, isolate this phase (see [Failure handling](#failure-handling)).
         - For `ghcr.io` images: try the GitHub Releases API as the fallback.
         - If you still cannot find a version **equal to or newer** than the current one, record this
           discrepancy in the report and skip updating that image.
-3. Update any outdated image references in-place across all scanned files.
+3. Update any outdated image references, and apply the migrations from step 1, in-place across all scanned files.
 4. After updating, rebuild the local Docker images: `task build` when the Taskfile has a `build` task, otherwise the
 Compose equivalent (`docker compose build --pull`) through `executing-commands`. Skip this step when the project has
 no Compose files and no `build` task.
@@ -294,7 +305,8 @@ task, otherwise the Compose equivalent (`docker compose down`, then `docker comp
 `executing-commands`. Skip this step when the project has no Compose files and no `reset` task.
 6. Run the project checks (as in Phase 3).
 7. Check `git status` for all changed files. Stage only files directly related to Docker image updates (e.g.,
-the Compose files and Dockerfiles found in Phase 0, `.github/workflows/*.yml`) and commit.
+the Compose files and Dockerfiles found in Phase 0, `.github/workflows/*.yml`, and the Taskfiles when a Node.js image
+reference was migrated there) and commit.
 Commit message:
 `chore(deps): Updated Docker image versions`. For any remaining unrelated changed files, commit them separately
 with a descriptive message.
