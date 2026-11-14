@@ -168,3 +168,5 @@ When all locally runnable checks are green, confirm (list any check that stayed 
 
 Ready to commit / push.
 ```
+
+When you commit the fixes, use the `create-commit` skill.
