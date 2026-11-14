@@ -1,7 +1,7 @@
 {
     "name": "github",
     "description": "A GitHub-specific plugin for Specs",
-    "version": "0.0.16",
+    "version": "0.0.17",
     "author": {
         "name": "Specsnl Team",
         "email": "info@specs.nl",

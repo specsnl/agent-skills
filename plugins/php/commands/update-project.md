@@ -116,13 +116,25 @@ they are. Record every choice made here in the PR body.
     too).
     - Locally: when fully merged into `<default>`, or without unique commits, delete and recreate it from the source
     branch. When it contains unique commits, leave it untouched and use the suffixed name.
-4. Prepare the branch from the source branch:
+4. Find the open PRs of earlier runs: open PRs against `<default>` from a `vendor-updates` or
+`vendor-updates-<YYYY-MM-DD>[-<n>]` branch of this repository. This run replaces them (see [Final State](#final-state)),
+so record their numbers. Leave out the PR of the branch chosen in step 3 when it is reused: pushing to it updates
+that PR instead. When `gh` can't list the PRs, record it and continue without replacing any.
+
+    ```bash
+    gh pr list --state open --base <default> --limit 100 --json number,headRefName,isCrossRepository \
+        --jq '.[] | select(.isCrossRepository | not)
+                  | select(.headRefName | test("^vendor-updates(-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[0-9]+)?)?$"))
+                  | .number'
+    ```
+
+5. Prepare the branch from the source branch:
     - **Clean working tree** (no staged, unstaged or untracked changes): create or reset the branch from step 3 and
     check it out.
     - **Dirty working tree:** leave the changes untouched and run the whole update in a fresh worktree instead:
     `git worktree add -b <branch> <path> <source>` (e.g. a sibling directory `../<repo>-vendor-updates`). Run
     every later phase in that worktree, and remove it (`git worktree remove <path>`) once the branch is pushed.
-5. If the `composer.json` file contains a repositories section with private repositories (like Filament), make sure
+6. If the `composer.json` file contains a repositories section with private repositories (like Filament), make sure
 Composer has credentials for them: an `auth.json` file in the project root, or Composer's global auth
 (`COMPOSER_AUTH`, `~/.composer/auth.json`) when the project runs Composer on the host. If there are none, use
 `COMPOSER_AUTH` when it is set in the environment (pass it through by name, never print it). Otherwise skip the
@@ -424,7 +436,8 @@ summary and suggest to the user to update those as well.
 When there are no changes after all update steps, the run ends here with a report instead of a PR: dependencies
 are already up to date. The report also lists the skipped phases and decisions, and, for a library without a
 committed `composer.lock`, the results of the Phase 3 test run and the major version suggestions. Delete the empty
-branch (and the worktree, when one was created) — it has no commits of its own.
+branch (and the worktree, when one was created) — it has no commits of its own. The open PRs of earlier runs (Phase 1
+step 4) stay open, since nothing replaces them: list them in the report.
 
 - There could be up to 8 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
 committed separately per the Commit Strategy):
@@ -481,6 +494,7 @@ selected).
   ## Decisions and skipped steps
   - Skipped Phase 6 (frontend dependencies): `pnpm run build` failed with <error>
   - Held back `vendor/package` at 1.2.3: the update breaks <check>
+  - Replaces #<n>, which is closed
 
   ## Test plan
   - [ ] Review the dependency changelog(s) for any breaking changes or notable updates.
@@ -489,4 +503,13 @@ selected).
 
   Only include the runner images test plan item when the runner images were updated. Only include the
   `## Decisions and skipped steps` section when there is something to list: every skipped or isolated phase,
-  held-back package, chosen source or branch name other than the defaults, and skill-gap issue filed.
+  held-back package, chosen source or branch name other than the defaults, replaced PR, and skill-gap issue filed.
+- **Replace the PRs of earlier runs** found in Phase 1 step 4, once the new PR exists: close each one with a comment
+  that links the new PR. Leave its branch in place, since it may hold fixes someone pushed by hand:
+
+    ```bash
+    gh pr close <n> --comment "Replaced by #<new>, a fresh dependency update from <default>."
+    ```
+
+  When `create-pr` didn't open a new PR, close nothing. When closing a PR fails, leave it open and list it in the
+  new PR's `## Decisions and skipped steps` (with `update-pr`) instead of the "Replaces" bullet.
