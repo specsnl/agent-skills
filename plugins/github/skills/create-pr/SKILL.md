@@ -77,8 +77,6 @@ draft PR isn't possible, skip the PR and report the failing checks instead (see 
   ```
 
   Use the Linear issue slug as the branch name if one was provided.
-- Commit messages lead with a **single subject line**. A body is allowed when it
-  adds context the subject can't carry, but keep it succinct — a few lines at most.
 
 Create every commit with the `create-commit` skill. It makes the user the author and committer, keeps
 Claude and AI out of commit messages and branch names, and verifies this before you push. When the

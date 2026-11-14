@@ -73,12 +73,9 @@ ones. Run the project's checks/tests as you go.
 Commit as you complete logical units of work — not one large dump at the end.
 
 - Small, self-contained commits, each leaving the tree in a working state.
-- Clear, imperative subject lines that follow the repo's convention (e.g.
-  Conventional Commits when the repo uses them), referencing the issue where it
-  helps (e.g. `feat: add X (GH-123)` or `Refs ABC-456`).
-- Keep unrelated changes out of a commit.
-- Create every commit with the `create-commit` skill (the user is author and committer, no Claude or AI
-  trailers, no `claude` in the branch name). Never run `git commit` directly.
+- Reference the issue where it helps (e.g. `feat: add X (GH-123)` or `Refs ABC-456`).
+- Create every commit with the `create-commit` skill: it owns the message format, the identity and the
+  branch-name rules. Never run `git commit` directly.
 
 ---
 
