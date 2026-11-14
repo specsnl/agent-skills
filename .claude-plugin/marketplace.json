@@ -41,11 +41,30 @@
         {
             "name": "crit",
             "source": {
-                "source": "git-subdir",
-                "url": "https://github.com/tomasz-tomczyk/crit.git",
-                "path": "integrations/claude-code"
+                "source": "github",
+                "repo": "tomasz-tomczyk/crit"
             },
-            "description": "Review and comment on plans, code diffs, and frontend elements, then send feedback directly to your agent."
+            "description": "Review and comment on plans, code diffs, and frontend elements, then send feedback directly to your agent.",
+            "strict": false,
+            "skills": [
+                "./integrations/claude-code/skills/crit",
+                "./integrations/claude-code/skills/crit-cli",
+                "./integrations/claude-code/skills/crit-story"
+            ],
+            "hooks": {
+                "PermissionRequest": [
+                    {
+                        "matcher": "ExitPlanMode",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": "crit plan-hook",
+                                "timeout": 345600
+                            }
+                        ]
+                    }
+                ]
+            }
         },
         {
             "name": "gh-stack",
