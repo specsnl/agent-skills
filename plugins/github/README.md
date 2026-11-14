@@ -37,3 +37,10 @@ Use whenever the commits of a branch with an open PR change (push, force-push, r
 added or dropped commits). Rebuilds the generated parts of the PR description — and the title when the
 scope changed — from the branch as it is now, keeps everything a person added, and applies it with
 `gh pr edit`.
+
+## Hooks
+
+**pr-sync-reminder** (`PostToolUse` on `Bash`):  
+After a `git push` (including a force-push) on a branch with an open PR, reminds Claude to run the
+`update-pr` skill so the PR title and description match the pushed commits. Silent for other commands,
+when there is no open PR, or when `gh` or `jq` is missing. It never edits the PR itself.
