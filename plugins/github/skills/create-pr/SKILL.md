@@ -86,8 +86,14 @@ branch already holds commits, run its verification step (step 4) on them before 
 
 ## Phase 4 — Create the PR
 
-When the branch already has an open PR (`gh pr view` succeeds), don't create a second one: push and
-run the `update-pr` skill instead, so the existing description matches the commits.
+When the branch already has an open PR, don't create a second one: push and run the `update-pr` skill
+instead, so the existing description matches the commits. Check the state, not just whether `gh pr view`
+succeeds: it also returns a merged or closed PR of a branch with the same name, even after that branch was
+deleted. Only an open PR counts; with a merged or closed one (or none), create a new PR:
+
+```bash
+gh pr view --json number,state --jq 'select(.state == "OPEN") | .number'   # prints nothing: create a new PR
+```
 
 ```bash
 git push -u origin HEAD
