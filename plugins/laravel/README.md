@@ -12,8 +12,8 @@ the [`php@specs`](../php/README.md) plugin (`claude plugin install php@specs`).
 ## Skills
 
 **fix-translations**:  
-Find, fix, or translate source-language values in the Laravel translation files (`lang/<locale>/*.php`
-and `lang/<locale>.json`). Scans them for untranslated values, translates them to the target
+Find, fix, or translate source-language values in the Laravel translation files (`lang/{locale}/*.php`
+and `lang/{locale}.json`). Scans them for untranslated values, translates them to the target
 language, fixes errors and typos, commits the changes, and opens a PR — preserving `|` plural
 syntax, `:placeholder` tokens, Blade fragments, and array/JSON keys.
 

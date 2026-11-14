@@ -1,7 +1,7 @@
 ---
 name: fix-translations
 description: |
-    Use this skill to find, fix, or translate source-language values in the Laravel translation files of a project — the PHP arrays under `lang/<locale>/` and the JSON catalogues `lang/<locale>.json`. Scans them for untranslated values, translates them to the target language, fixes errors and typos, commits the changes, and opens a PR. Laravel-specific: it preserves `|` plural syntax, `:placeholder` tokens and Blade fragments, and never translates array keys or JSON source keys.
+    Use this skill to find, fix, or translate source-language values in the Laravel translation files of a project — the PHP arrays under `lang/{locale}/` and the JSON catalogues `lang/{locale}.json`. Scans them for untranslated values, translates them to the target language, fixes errors and typos, commits the changes, and opens a PR. Laravel-specific: it preserves `|` plural syntax, `:placeholder` tokens and Blade fragments, and never translates array keys or JSON source keys.
 ---
 
 # Fix {{TARGET_LANGUAGE}} Laravel Translations — {{REPOSITORY}}
