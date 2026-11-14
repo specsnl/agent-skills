@@ -77,6 +77,8 @@ Commit as you complete logical units of work — not one large dump at the end.
   Conventional Commits when the repo uses them), referencing the issue where it
   helps (e.g. `feat: add X (GH-123)` or `Refs ABC-456`).
 - Keep unrelated changes out of a commit.
+- Create every commit with the `create-commit` skill (the user is author and committer, no Claude or AI
+  trailers, no `claude` in the branch name). Never run `git commit` directly.
 
 ---
 

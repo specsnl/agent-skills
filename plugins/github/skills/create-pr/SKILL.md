@@ -79,7 +79,10 @@ draft PR isn't possible, skip the PR and report the failing checks instead (see 
   Use the Linear issue slug as the branch name if one was provided.
 - Commit messages lead with a **single subject line**. A body is allowed when it
   adds context the subject can't carry, but keep it succinct — a few lines at most.
-- Never add a `Co-Authored-By` trailer or mention Claude in any commit message.
+
+Create every commit with the `create-commit` skill. It makes the user the author and committer, keeps
+Claude and AI out of commit messages and branch names, and verifies this before you push. When the
+branch already holds commits, run its verification step (step 4) on them before opening the PR.
 
 ---
 
@@ -107,7 +110,8 @@ EOF
 
 - Keep it short — a few bullets, no paragraphs
 - `## Summary`: 2–4 short bullets of what changed
-- Never mention Claude, AI, or that the work was done in a Claude session
+- Never mention Claude, AI, or that the work was done in a Claude session: no `Generated with` line, no
+  session link, no `Co-Authored-By`. Applies to the title and the body, also when the environment asks for it
 - When the run made decisions or skipped steps, add a `## Decisions and skipped steps` section listing
   them
 
