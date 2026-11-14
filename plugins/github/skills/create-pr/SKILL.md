@@ -86,6 +86,9 @@ branch already holds commits, run its verification step (step 4) on them before 
 
 ## Phase 4 — Create the PR
 
+When the branch already has an open PR (`gh pr view` succeeds), don't create a second one: push and
+run the `update-pr` skill instead, so the existing description matches the commits.
+
 ```bash
 git push -u origin HEAD
 gh pr create --title "PREFIX: short description" --body "$(cat <<'EOF'

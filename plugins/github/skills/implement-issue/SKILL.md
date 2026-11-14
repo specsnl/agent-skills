@@ -76,6 +76,8 @@ Commit as you complete logical units of work — not one large dump at the end.
 - Reference the issue where it helps (e.g. `feat: add X (GH-123)` or `Refs ABC-456`).
 - Create every commit with the `create-commit` skill: it owns the message format, the identity and the
   branch-name rules. Never run `git commit` directly.
+- When the branch already has an open PR and you push new commits to it, run the `update-pr` skill so
+  its description stays current.
 
 ---
 

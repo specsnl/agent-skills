@@ -92,6 +92,9 @@ When one of them matches:
 - **Commits already pushed, or commits you didn't create:** never rewrite them. Recreate your changes
   on a new, correctly named branch, push that one, and report the old branch so the user can delete it.
 
+When the branch already has an open PR, run the `update-pr` skill after pushing so its description
+matches the commits.
+
 ---
 
 ## Prevent it at the source

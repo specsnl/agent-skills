@@ -31,3 +31,9 @@ Use when asked to read an issue and implement it (e.g. "read issue X and impleme
 issue (GitHub via a GitHub MCP or the `gh` CLI, or Linear via the Linear MCP), create a new branch,
 implement the change with small, clearly-messaged commits, and stop before opening a PR — the PR is
 only created when you explicitly ask (via the `create-pr` skill).
+
+**update-pr**:  
+Use whenever the commits of a branch with an open PR change (push, force-push, rebase, review fixes,
+added or dropped commits). Rebuilds the generated parts of the PR description — and the title when the
+scope changed — from the branch as it is now, keeps everything a person added, and applies it with
+`gh pr edit`.
