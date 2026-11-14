@@ -1,8 +1,6 @@
 #!/bin/bash
 set -e
 
-MARKETPLACE_FILE=".claude-plugin/marketplace.json"
-
 plugins="$(git diff --cached --name-only -- plugins/ | cut -d'/' -f2 | sort -u)"
 [ -z "$plugins" ] && exit 0
 
@@ -15,9 +13,20 @@ case "$(basename "${GIT_INDEX_FILE:-}")" in
     ;;
 esac
 
-before="$(git hash-object "$MARKETPLACE_FILE")"
+base="$(git merge-base HEAD main)"
 
-git show "$(git merge-base HEAD main):$MARKETPLACE_FILE" | docker run \
+manifests() {
+  for plugin in $plugins; do
+    manifest="plugins/$plugin/.claude-plugin/plugin.json"
+    if [ -f "$manifest" ]; then echo "$manifest $(git hash-object "$manifest")"; fi
+  done
+}
+
+before="$(manifests)"
+
+for plugin in $plugins; do
+  git show "$base:plugins/$plugin/.claude-plugin/plugin.json" 2>/dev/null || true
+done | docker run \
   --rm \
   --interactive \
   --user "$(id -u):$(id -g)" \
@@ -26,4 +35,6 @@ git show "$(git merge-base HEAD main):$MARKETPLACE_FILE" | docker run \
   ghcr.io/specsnl/utils:1.17.0 \
   bash .githooks/bump-versions.sh $plugins
 
-[ "$(git hash-object "$MARKETPLACE_FILE")" = "$before" ] || git add "$MARKETPLACE_FILE"
+manifests | while read -r manifest hash; do
+  grep --quiet --line-regexp --fixed-strings "$manifest $hash" <<< "$before" || git add "$manifest"
+done

@@ -1,6 +1,7 @@
 {
     "name": "laravel",
     "description": "A Specs Laravel specific plugin",
+    "version": "0.0.26",
     "author": {
         "name": "Specsnl Team",
         "email": "info@specs.nl",
@@ -8,5 +9,11 @@
     },
     "repository": "specsnl/agent-skills",
     "license": "MIT",
-    "keywords": ["laravel", "php", "framework", "specs", "plugin"]
+    "keywords": [
+        "laravel",
+        "php",
+        "framework",
+        "specs",
+        "plugin"
+    ]
 }
