@@ -433,6 +433,18 @@ there is none, skip this phase entirely — do not create one.
     - `.github/workflows/*.yml` → `github-actions`, with directory `/` (Dependabot then scans `.github/workflows`
     itself). Composite actions under `.github/actions/<name>/action.yml` are **not** covered by `/` — each needs its
     own directory (e.g. `/.github/actions/<name>`) or a matching glob.
+
+    Leave out a `package.json` or `composer.json` that belongs to a vendored, prebuilt bundle, e.g. a third-party
+    editor's custom build committed under `public/`. It is one only when all three hold:
+    - there is no lock file next to it;
+    - its build output is committed next to it (e.g. `build/`, `dist/`, a tracked `vendor/` or `node_modules/`);
+    - nothing in the project builds it: the root `package.json` (scripts, workspaces), the Taskfile, the Dockerfiles
+    and the CI workflows don't reference its directory.
+
+    Dependabot would only bump the ranges in such a file without rebuilding the committed output, so its PRs would
+    change nothing that ships. Don't add coverage for it; list it in the PR body's `## Decisions and skipped steps`
+    so a person can decide. This never applies to the project root's own manifests. An existing entry that already
+    covers such a directory stays as it is (see step 4).
 3. For each resource, check whether an entry under `updates` covers it: the `package-ecosystem` must match, and the
 resource's directory must be listed in `directory`, or in `directories` (directly or through a glob such as
 `/.github/actions/*`). Report every uncovered resource — for example, a project with `compose.yml` in the root but
