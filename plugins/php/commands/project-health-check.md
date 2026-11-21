@@ -241,7 +241,8 @@ Cheap extra checks. Each one is optional: skip it when it can't run, and say so.
 - **Staleness.** Report, without changing anything, what `update-project` would bump: Docker images (Phase 7),
   GitHub Actions and runner images (Phase 8). Use the detection and version rules of those phases in
   `update-project.md`; don't duplicate them here.
-- **Dependabot coverage gaps:** the inventory of `update-project` Phase 9, step 2 and 3, reported only.
+- **Dependabot coverage gaps:** the inventory of `update-project` Phase 9, step 2 and 3, reported only. List the
+  vendored, prebuilt bundles step 2 leaves out separately, not as gaps.
 
 ## Report
 

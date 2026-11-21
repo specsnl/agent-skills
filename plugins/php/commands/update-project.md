@@ -133,7 +133,9 @@ that PR instead. When `gh` can't list the PRs, record it and continue without re
     check it out.
     - **Dirty working tree:** leave the changes untouched and run the whole update in a fresh worktree instead:
     `git worktree add -b <branch> <path> <source>` (e.g. a sibling directory `../<repo>-vendor-updates`). Run
-    every later phase in that worktree, and remove it (`git worktree remove <path>`) once the branch is pushed.
+    every later phase in that worktree. Before starting anything there, isolate its Docker environment from the main
+    checkout (see [Worktree runs](#worktree-runs-isolate-the-docker-environment) in Phase 2). Once the branch is
+    pushed, take the worktree's stack down and remove the worktree (`git worktree remove <path>`).
 6. If the `composer.json` file contains a repositories section with private repositories (like Filament), make sure
 Composer has credentials for them: an `auth.json` file in the project root, or Composer's global auth
 (`COMPOSER_AUTH`, `~/.composer/auth.json`) when the project runs Composer on the host. If there are none, use
@@ -160,6 +162,44 @@ task targets are available) before running any commands.
 When a step fails, try the next route `executing-commands` offers for it (e.g. Docker Compose when the task fails
 for a reason outside the project). When the environment still can't be prepared, skip the phases that run the
 project checks (3, 4 and 7), continue with the others, and record why.
+
+### Worktree runs: isolate the Docker environment
+
+Only for a run in a worktree (Phase 1 step 5) of a project with Compose files. Compose names its containers,
+networks, named volumes and built images after the *Compose project*. That name defaults to the directory name,
+which differs per worktree, but a project can pin it (a top-level `name:` in a Compose file, or
+`COMPOSE_PROJECT_NAME` in the environment or in a `.env` copied from the main checkout). With a pinned name the
+worktree drives the **same** stack as the main checkout: a first `task up` that runs a one-time setup (e.g.
+`migrate:fresh`) or Phase 7's `task reset` (which may run `down --volumes`) would wipe the user's local database, and
+`task build` would replace their locally built images. So before step 2 above:
+
+1. Compare the project names: run `docker compose config --format json | jq -r .name` in the main checkout and in
+the worktree (add the `-f` files the Taskfile passes, if any). When they differ, the stacks are already separate:
+continue.
+2. When they are the same, give the worktree its own name, e.g. `<name>-vendor-updates`: export
+`COMPOSE_PROJECT_NAME=<name>-vendor-updates` for every command in the worktree, and replace the value in the
+worktree's own `.env` copy when it pins one there (never edit the main checkout's `.env`). Check that it took effect:
+the comparison from step 1 now prints the new name, and the Taskfile doesn't pass its own `-p` / `--project-name` or
+set `COMPOSE_PROJECT_NAME` itself. When the worktree's stack then fails to start because the main stack holds the
+published ports, handle it as an environment that can't be prepared (above).
+3. When the name can't be changed, check whether the shared project already has resources:
+`docker compose ps --all --quiet` and
+`docker volume ls --quiet --filter label=com.docker.compose.project=<name>`. When either prints anything, don't run
+anything in the worktree that starts, builds or resets the stack: treat it as an environment that can't be prepared
+(above), also skip the rebuild and reset of Phase 7 (steps 4 and 5), and record why. When both print nothing,
+continue, and record that the run used the main checkout's Compose project.
+4. At the end of the run, before removing the worktree, take its stack down from the worktree (`task down`, or
+`docker compose down`). Add `--volumes` only when the worktree had its own project name: those volumes were created
+by this run. In the PR body, mention that locally built images may have been replaced when the run shared the
+project name, or when a service with a `build:` sets an explicit `image:` (that tag doesn't depend on the project
+name).
+
+A volume declared `external: true` (e.g. a shared Composer, npm or corepack cache) is shared by every project and
+worktree, whatever the project name. When such a cache volume isn't writable for the container user (e.g. it is
+owned by root and corepack can't create its cache directory), change its owner to the UID/GID the containers run as,
+without deleting anything: `docker run --rm -v <volume>:/data alpine chown -R <uid>:<gid> /data`. Do this only for a
+volume that holds cache data; record it in the PR body. Any other volume that isn't writable is an environment that
+can't be prepared.
 
 ## Phase 3 --- Backend Dependencies
 
@@ -393,6 +433,18 @@ there is none, skip this phase entirely — do not create one.
     - `.github/workflows/*.yml` → `github-actions`, with directory `/` (Dependabot then scans `.github/workflows`
     itself). Composite actions under `.github/actions/<name>/action.yml` are **not** covered by `/` — each needs its
     own directory (e.g. `/.github/actions/<name>`) or a matching glob.
+
+    Leave out a `package.json` or `composer.json` that belongs to a vendored, prebuilt bundle, e.g. a third-party
+    editor's custom build committed under `public/`. It is one only when all three hold:
+    - there is no lock file next to it;
+    - its build output is committed next to it (e.g. `build/`, `dist/`, a tracked `vendor/` or `node_modules/`);
+    - nothing in the project builds it: the root `package.json` (scripts, workspaces), the Taskfile, the Dockerfiles
+    and the CI workflows don't reference its directory.
+
+    Dependabot would only bump the ranges in such a file without rebuilding the committed output, so its PRs would
+    change nothing that ships. Don't add coverage for it; list it in the PR body's `## Decisions and skipped steps`
+    so a person can decide. This never applies to the project root's own manifests. An existing entry that already
+    covers such a directory stays as it is (see step 4).
 3. For each resource, check whether an entry under `updates` covers it: the `package-ecosystem` must match, and the
 resource's directory must be listed in `directory`, or in `directories` (directly or through a glob such as
 `/.github/actions/*`). Report every uncovered resource — for example, a project with `compose.yml` in the root but
@@ -436,8 +488,9 @@ summary and suggest to the user to update those as well.
 When there are no changes after all update steps, the run ends here with a report instead of a PR: dependencies
 are already up to date. The report also lists the skipped phases and decisions, and, for a library without a
 committed `composer.lock`, the results of the Phase 3 test run and the major version suggestions. Delete the empty
-branch (and the worktree, when one was created) — it has no commits of its own. The open PRs of earlier runs (Phase 1
-step 4) stay open, since nothing replaces them: list them in the report.
+branch (and the worktree, when one was created, after taking its stack down as in Phase 2) — it has no commits of
+its own. The open PRs of earlier runs (Phase 1 step 4) stay open, since nothing replaces them: list them in the
+report.
 
 - There could be up to 8 commits on the `vendor-updates` branch (more if unrelated side-effect changes were
 committed separately per the Commit Strategy):
@@ -503,7 +556,8 @@ selected).
 
   Only include the runner images test plan item when the runner images were updated. Only include the
   `## Decisions and skipped steps` section when there is something to list: every skipped or isolated phase,
-  held-back package, chosen source or branch name other than the defaults, replaced PR, and skill-gap issue filed.
+  held-back package, chosen source or branch name other than the defaults, replaced PR, worktree Docker decision
+  (Phase 2), and skill-gap issue filed.
 - **Replace the PRs of earlier runs** found in Phase 1 step 4, once the new PR exists: close each one with a comment
   that links the new PR. Leave its branch in place, since it may hold fixes someone pushed by hand:
 
