@@ -1,7 +1,7 @@
 {
     "name": "php",
     "description": "A PHP-specific plugin for Specs",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "author": {
         "name": "Specsnl Team",
         "email": "info@specs.nl",
