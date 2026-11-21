@@ -39,6 +39,11 @@
             "description": "A GitHub-specific plugin for Specs"
         },
         {
+            "name": "herdr",
+            "source": "./plugins/herdr",
+            "description": "A Specs plugin for driving the Herdr app and herdr-core (hc)"
+        },
+        {
             "name": "crit",
             "source": {
                 "source": "git-subdir",

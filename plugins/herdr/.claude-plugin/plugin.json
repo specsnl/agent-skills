@@ -1,0 +1,20 @@
+{
+    "name": "herdr",
+    "description": "A Specs plugin for driving the Herdr app and herdr-core (hc)",
+    "version": "0.0.1",
+    "author": {
+        "name": "Specsnl Team",
+        "email": "info@specs.nl",
+        "url": "https://github.com/specsnl"
+    },
+    "repository": "specsnl/agent-skills",
+    "license": "MIT",
+    "keywords": [
+        "herdr",
+        "hc",
+        "terminals",
+        "agents",
+        "specs",
+        "plugin"
+    ]
+}

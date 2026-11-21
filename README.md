@@ -20,6 +20,7 @@ The marketplace namespace is `specs`. So after adding this marketplace you will 
 | linear@specs       | A Specs plugin for creating Linear issues from raw client input                                                |
 | code@specs         | A Specs plugin with cross-language code authoring conventions                                                  |
 | github@specs       | A GitHub-specific plugin for Specs                                                                             |
+| herdr@specs        | A Specs plugin for driving the Herdr app and herdr-core (hc)                                                   |
 | git-workflow@specs | Atomic-commit Git workflow skills: amend/fixup, conflict resolution, reflog undo, bisect debugging             |
 | gh-stack@specs     | Manages stacked PRs and splits multi-part work into reviewable branches with the gh-stack GitHub CLI extension |
 
@@ -48,6 +49,7 @@ list a plugin from this repository without tracking its version. Leave `version`
   - macOS: `brew install gh` — see [cli.github.com](https://cli.github.com/) for other platforms
   - `gh auth login` (once, if you haven't already)
   - `gh extension install github/gh-stack`
+- **[Herdr](https://herdr.dev)** (`herdr@specs`) — The skill drives the Herdr app (`herdr-app`) and herdr-core (`hc`), so both must be installed separately: see [herdr.dev](https://herdr.dev).
 
 ## Tasks
 
